@@ -1,0 +1,21 @@
+# Eclipse/pycharm settings files
+.idea
+.project
+.pydevproject
+
+# editor backup files
+*.swp
+*~
+*.bak
+
+# python droppings from running in place
+__pycache__/
+*.pyc
+*.pyo
+*.so
+*.pyd
+*.dll
+*.dyld
+
+# ipynb files
+.ipynb_checkpoints/

@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 
 from __future__ import division
+from __future__ import print_function
 
 import tensorflow as tf
 import numpy as np
 import math, os
 
+import model
+
 
 #FINGERPRINT_DIR = '../results'
 FINGERPRINT_DIR = '/work/projects/SD2E-Community/prod/data/shared-q0-hackathon/team10/nci_rocklin'
-SCORE_PATH = '/work/05187/ams13/maverick/output.csv'
-WORK_DIR = '/work/05187/ams13/maverick/Working/TensorFlow/'
+WORK_DIR = model.WORK_DIR
+SCORE_PATH = os.path.join(WORK_DIR, 'output.csv')
 
 N_EVAL = 600
 
@@ -78,7 +81,7 @@ def get_stab_score(score_table, name):
     try:
         return score_table[name]
     except KeyError:
-        print name + " not in table"
+        print(name + " not in table")
         return None
 
 
@@ -87,7 +90,7 @@ def get_stab_score(score_table, name):
 def load_data_from_raws():
     import numpy as np
     import shutil, errno
-    print "reloading raw data"
+    print("reloading raw data")
 
     # remove work directory (to clear any old sessions, etc)
     try:
@@ -131,7 +134,7 @@ def load_data_from_raws():
                 stab_scores.append(score)
                 topos.append(topology)
         else:
-            print "no data for " + f_name
+            print("no data for " + f_name)
 
     prints_all = np.array(fingerprints, dtype=np.float32)
     scores_all = np.array(stab_scores, dtype=np.float32)
@@ -141,7 +144,7 @@ def load_data_from_raws():
     np.savez(os.path.join(WORK_DIR, "data_full.npz"),
                  **{'fingerprints': prints_all, 'scores': scores_all, 'topologies': topos_all})
 
-    print "data loaded and saved"
+    print("data loaded and saved")
 
 
 # load full dataframe from processed archives
@@ -201,7 +204,7 @@ def load_data(eval_data, new_split=False, reload_data=False):
         np.savez(os.path.join(WORK_DIR, "data_train.npz"),
                  **{'fingerprints': train_print, 'scores': train_score, 'topologies': train_topol})
 
-        print "loaded %d files" % n_tot
+        print("loaded %d files" % n_tot)
 
 
     with np.load(data_file) as loaded_data:
@@ -210,7 +213,7 @@ def load_data(eval_data, new_split=False, reload_data=False):
         topols = loaded_data['topologies']
 
     assert prints.shape[0] == scores.shape[0]
-    print "imported %d datapoints" % prints.shape[0]
+    print("imported %d datapoints" % prints.shape[0])
 
     return prints, scores, topols
 
@@ -238,7 +241,7 @@ def inf_datagen(arr1, arr2, batch, repeat=True):
             yield arr1[idx:idx+batch], arr2[idx:idx+batch]
             idx += batch
         else:
-            print "reshuffling queue"
+            print("reshuffling queue")
             idx = 0
             shuffle = np.random.permutation(np.arange(n_ell))
             arr1 = arr1[shuffle]

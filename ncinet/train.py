@@ -1,5 +1,6 @@
 
 from __future__ import division
+from __future__ import print_function
 
 import os
 import time
@@ -11,8 +12,8 @@ import tensorflow as tf
 import model
 import ncinet_input
 
-TRAIN_AUTOENCODER = False
-WORK_DIR = "/work/05187/ams13/maverick/Working/TensorFlow/ncicnnn"
+TRAIN_AUTOENCODER = True
+WORK_DIR = model.WORK_DIR
 
 LOG_FREQUENCY = 20
 BATCH_SIZE = 32
@@ -52,8 +53,8 @@ class _LoggerHook(tf.train.SessionRunHook):
 
                 format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
                               'sec/batch)')
-                print (format_str % (datetime.now(), self._step, loss_value,
-                       examples_per_sec, sec_per_batch))
+                print(format_str % (datetime.now(), self._step, loss_value,
+                      examples_per_sec, sec_per_batch))
 
 
 
@@ -139,7 +140,7 @@ def train():
                    _LoggerHook(loss)]) as mon_sess:
 
             while not mon_sess.should_stop():
-                print_batch, topo_batch = batch_gen.next()
+                print_batch, topo_batch = next(batch_gen)
 
                 if TRAIN_AUTOENCODER:
                     label_batch = print_batch

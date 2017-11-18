@@ -4,6 +4,7 @@
 # https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10
 
 from __future__ import division
+from __future__ import print_function
 
 import math
 import numpy as np
@@ -11,6 +12,9 @@ import tensorflow as tf
 
 # TODO: consider binding some actions to CPU
 # TODO: weights with biases
+
+#WORK_DIR = '/work/05187/ams13/maverick/Working/TensorFlow/'
+WORK_DIR = 'C:/Users/schan/Documents/TF_run'
 
 # Global constants describing the CIFAR-10 data set.
 #IMAGE_SIZE = cifar10_input.IMAGE_SIZE

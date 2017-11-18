@@ -15,13 +15,13 @@ import model
 import ncinet_input
 
 
-WORK_DIR = "/work/05187/ams13/maverick/Working/TensorFlow/ncicnnn"
+WORK_DIR = model.WORK_DIR
 
 BATCH_SIZE = 100
 NUM_EVAL = 600
 USE_EVAL_DATA = True
 
-EVAL_AUTOENCODER = False
+EVAL_AUTOENCODER = True
 EVAL_DIR = os.path.join(WORK_DIR, "eval_ae" if EVAL_AUTOENCODER else "eval_inf")
 AUTO_DIR = os.path.join(WORK_DIR, "train_ae")
 INF_DIR = os.path.join(WORK_DIR, "train_inf")
@@ -59,7 +59,7 @@ def eval_once(scaffold, eval_op):
         batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE, label_type="topos")
 
         while step < num_iter:
-            print_batch, topo_batch = batch_gen.next()
+            print_batch, topo_batch = next(batch_gen)
             print_batch = list(print_batch)
 
             if EVAL_AUTOENCODER:
@@ -165,7 +165,7 @@ def evaluate():
             time.sleep(EVAL_INTERVAL)
 
 
-def main(argv=None):  # pylint: disable=unused-argument
+def main(argv=None):
     if tf.gfile.Exists(EVAL_DIR):
         tf.gfile.DeleteRecursively(EVAL_DIR)
         tf.gfile.MakeDirs(EVAL_DIR)

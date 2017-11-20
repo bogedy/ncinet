@@ -24,11 +24,11 @@ TRAIN_DIR = ""
 MAX_STEPS = 100000
 
 
-
 class _LoggerHook(tf.train.SessionRunHook):
     """Logs loss and runtime."""
     def __init__(self, loss_op):
         self._loss_op = loss_op
+
     def begin(self):
         self._step = -1
         self._start_time = time.time()
@@ -58,9 +58,44 @@ class _LoggerHook(tf.train.SessionRunHook):
                       examples_per_sec, sec_per_batch))
 
 
+def _make_scaffold(graph):
+    with graph.as_default():
+        summary = tf.summary.merge_all()
+        init_op = tf.global_variables_initializer()
+        ready_op = tf.report_uninitialized_variables()
+
+        if TRAIN_AUTOENCODER:
+            saver_auto = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
+                                        + tf.get_collection(model.NciKeys.AE_DECODER_VARIABLES))
+            scaffold = tf.train.Scaffold(init_op=init_op, ready_op=ready_op,
+                                         summary_op=summary,
+                                         saver=saver_auto)
+        else:
+            saver_auto = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES))
+            saver_inf = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
+                                       + tf.get_collection(model.NciKeys.INF_VARIABLES))
+
+            def load_trained(scaffold, sess):
+                # restore vars
+                ckpt = tf.train.get_checkpoint_state(AE_TRAIN_DIR)
+                if ckpt and ckpt.model_checkpoint_path:
+                    # Restores from checkpoint
+                    with tf.variable_scope(tf.get_variable_scope()):
+                        saver_auto.restore(sess, ckpt.model_checkpoint_path)
+                else:
+                    print('No checkpoint file found')
+                    raise RuntimeError
+
+            scaffold = tf.train.Scaffold(init_op=init_op,
+                                         init_fn=load_trained,
+                                         ready_op=ready_op,
+                                         summary_op=summary, saver=saver_inf)
+
+        return scaffold
+
 
 def train():
-    with tf.Graph().as_default():
+    with tf.Graph().as_default() as g:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
         #input placeholders
@@ -86,50 +121,15 @@ def train():
         # build training operation
         train_op = model_train.train(loss, global_step)
 
-
+        # Set up framework to run model.
         batch_gen = ncinet_input.inputs(False, BATCH_SIZE, label_type="topos")
         check = tf.add_check_numerics_ops()
-        summary = tf.summary.merge_all()
-        init_op = tf.global_variables_initializer()
-        ready_op = tf.report_uninitialized_variables()
-
-        if TRAIN_AUTOENCODER:
-            saver_auto = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES) \
-                                        + tf.get_collection(model.NciKeys.AE_DECODER_VARIABLES))
-        else:
-            saver_auto = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES))
-            saver_inf = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES) \
-                                       + tf.get_collection(model.NciKeys.INF_VARIABLES))
-
-
-        def load_trained(scaffold, sess):
-            # restore vars
-            ckpt = tf.train.get_checkpoint_state(AE_TRAIN_DIR)
-            if ckpt and ckpt.model_checkpoint_path:
-                # Restores from checkpoint
-                with tf.variable_scope(tf.get_variable_scope()):
-                    saver_auto.restore(sess, ckpt.model_checkpoint_path)
-            else:
-                print('No checkpoint file found')
-                raise RuntimeError
-
-
-        if TRAIN_AUTOENCODER:
-            scaffold = tf.train.Scaffold(init_op=init_op, ready_op=ready_op,
-                                         summary_op=summary,
-                                         saver=saver_auto)
-        else:
-            scaffold = tf.train.Scaffold(init_op=init_op,
-                                         init_fn=load_trained,
-                                         ready_op=ready_op,
-                                         summary_op=summary, saver=saver_inf)
-
+        scaffold = _make_scaffold(g)
 
         def add_noise(x, factor):
             noise = np.random.randn(*x.shape)
             x += factor*noise
             return np.clip(x, 0., 1.)
-
 
         with tf.train.MonitoredTrainingSession(
             scaffold=scaffold,
@@ -145,7 +145,7 @@ def train():
 
                 if TRAIN_AUTOENCODER:
                     label_batch = print_batch
-                    print_batch = add_noise(print_batch, 0.01)
+                    print_batch = add_noise(print_batch, 0.1)
                 else:
                     label_batch = topo_batch
 
@@ -154,7 +154,6 @@ def train():
                 mon_sess.run([train_op, check],
                              feed_dict={prints: print_batch,
                                         labels_input: label_batch})
-
 
 
 def main():

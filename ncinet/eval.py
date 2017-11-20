@@ -31,29 +31,66 @@ RUN_ONCE = True
 EVAL_INTERVAL = 120
 
 
+def _make_scaffold(graph, autoencoder=True):
+    """Construct a 'scaffold' for the given model"""
+    with graph.as_default():
+        summary_op = tf.summary.merge_all()
+        summary_writer = tf.summary.FileWriter(EVAL_DIR, graph)
+
+        def load_trained(saver, sess):
+            # restore vars
+            ckpt = tf.train.get_checkpoint_state(TRAIN_DIR)
+            if ckpt and ckpt.model_checkpoint_path:
+                # extract global_step from checkpoint filename
+                global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
+                # Restores from checkpoint
+                with tf.variable_scope(tf.get_variable_scope()):
+                    saver.restore(sess, ckpt.model_checkpoint_path)
+            else:
+                print('No checkpoint file found')
+                raise RuntimeError
+
+            return global_step
+
+        if autoencoder:
+            saver = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
+                                   + tf.get_collection(model.NciKeys.AE_DECODER_VARIABLES))
+        else:
+            saver = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
+                                   + tf.get_collection(model.NciKeys.INF_VARIABLES))
+
+        scaffold = dict(init_fn=lambda scaffold, sess: load_trained(scaffold['saver'], sess),
+                        ready_op=tf.report_uninitialized_variables(),
+                        summary_writer=summary_writer,
+                        summary_op=summary_op,
+                        saver=saver)
+
+        return scaffold
+
+
 def eval_once(scaffold, eval_op):
-    """Run Eval once.
+    """Run an operation once on the eval data.
     Args:
-        saver: Saver.
-        summary_writer: Summary writer.
-        top_k_op: Top K op.
-        summary_op: Summary op.
+        scaffold: dict which approximates a tf.train.Scaffold
+        eval_op: op to run on eval data.
     """
     with tf.Session() as sess:
 
-        # initialize the session
+        # initialize the session.
         global_step = scaffold['init_fn'](scaffold, sess)
 
-        # check ready
-        uninit = sess.run(scaffold['ready_op'])
-        if len(uninit) != 0:
-            print(uninit)
+        # check if session is ready.
+        not_init = sess.run(scaffold['ready_op'])
+        if len(not_init) != 0:
+            print(not_init)
             raise RuntimeError
 
         # runtime parameters
         num_iter = int(math.ceil(NUM_EVAL / BATCH_SIZE))
         total_sample_count = num_iter * BATCH_SIZE
         step = 0
+
+        # accumulator for eval op.
         eval_acc = 0
 
         batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE, label_type="topos")
@@ -100,7 +137,7 @@ def eval_once(scaffold, eval_op):
 
 
 def evaluate():
-    """Eval CIFAR-10 for a number of steps."""
+    """Eval model for a number of steps."""
     with tf.Graph().as_default() as g:
         # Placeholders for nci prints and scores
         prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
@@ -109,54 +146,24 @@ def evaluate():
         else:
             labels = tf.placeholder(tf.int32, shape=[None], name="labels")
 
-        # Build a Graph that computes the logits predictions from the
-        # inference model.
+        # Build a Graph to run the model
         if EVAL_AUTOENCODER:
             logits = model.autoencoder(prints, training=False)
         else:
             logits = model.inference(prints, training=False)
 
+        # Build the eval operations.
         if EVAL_AUTOENCODER:
-            norms = tf.norm(tf.subtract(labels, logits), ord="fro", axis=[1,2])
+            # Calculate norm of difference.
+            norms = tf.norm(tf.subtract(labels, logits), ord="fro", axis=[1, 2])
             eval_op = tf.divide(tf.reduce_sum(norms), 100*100)
         else:
-            # Calculate predictions.
+            # Calculate precision @1.
             top_k = tf.nn.in_top_k(logits, labels, 1)
             eval_op = tf.count_nonzero(top_k)
 
-
-        # framework to run model
-        if EVAL_AUTOENCODER:
-            saver = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES) \
-                                   + tf.get_collection(model.NciKeys.AE_DECODER_VARIABLES))
-        else:
-            saver = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES) \
-                                   + tf.get_collection(model.NciKeys.INF_VARIABLES))
-
-        summary_op = tf.summary.merge_all()
-        summary_writer = tf.summary.FileWriter(EVAL_DIR, g)
-
-        def load_trained(saver, sess):
-            # restore vars
-            ckpt = tf.train.get_checkpoint_state(TRAIN_DIR)
-            if ckpt and ckpt.model_checkpoint_path:
-                # extract global_step from checkpoint filename
-                global_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
-                # Restores from checkpoint
-                with tf.variable_scope(tf.get_variable_scope()):
-                    saver.restore(sess, ckpt.model_checkpoint_path)
-            else:
-                print('No checkpoint file found')
-                raise RuntimeError
-
-            return global_step
-
-
-        scaffold = dict(init_fn=lambda scaffold, sess: load_trained(scaffold['saver'], sess),
-                        ready_op=tf.report_uninitialized_variables(),
-                        summary_writer=summary_writer,
-                        summary_op=summary_op,
-                        saver=saver)
+        # Construct helpers to run model.
+        scaffold = _make_scaffold(g, EVAL_AUTOENCODER)
 
         while True:
             eval_once(scaffold, eval_op)

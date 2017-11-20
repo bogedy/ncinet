@@ -53,6 +53,8 @@ def get_design_name(f_name):
         raise ValueError
 
 
+# load stability scores from CSV
+# returns a dict of name:score pairs and a list names not in CSV
 def load_stab_scores(score_path):
     import csv
 
@@ -73,6 +75,7 @@ def load_stab_scores(score_path):
     return dict(pairs), no_data
 
 
+# gets score from dict
 def get_stab_score(score_table, name):
     try:
         return score_table[name]
@@ -103,6 +106,8 @@ def load_fingerprint(f_name):
     return np.flipud(np.loadtxt(f_name,np.float32).reshape(100, 100).T).reshape(100, 100, 1)
 
 
+# reloads data from CSV and integration files
+# saves to a numpy archive
 def load_data_from_raws(work_dir=WORK_DIR):
     import shutil
 

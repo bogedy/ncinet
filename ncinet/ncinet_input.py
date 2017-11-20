@@ -16,17 +16,6 @@ WORK_DIR = model.WORK_DIR
 N_EVAL = 600
 
 
-# load stability scores from CSV
-# returns a dict of name:score pairs and a list names not in CSV
-
-
-# gets score from dict
-
-
-# reloads data from CSV and integration files
-# saves to a numpy archive
-
-
 # load full dataframe from processed archives
 def load_data_from_archive(reload_data=False):
     archive_path = os.path.join(WORK_DIR, "data_full.npz")

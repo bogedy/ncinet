@@ -17,22 +17,27 @@ LEARNING_RATE_DECAY_FACTOR = 0.05  # Learning rate decay factor.
 INITIAL_LEARNING_RATE = 0.005       # Initial learning rate.
 
 
-def loss(logits, labels):
+def loss(logits, labels, xent_type="softmax"):
     """Sums L2Loss for trainable variables.
     Add summary for "Loss" and "Loss/avg".
     Args:
         logits: Logits from inference().
         labels: Labels from distorted_inputs or inputs(). Shape should match logits.
+        xent_type: type of loss to perform ("softmax" or "sigmoid")
     Returns:
         Loss tensor of type float.
     """
+    if xent_type != "softmax" and xent_type != "sigmoid":
+        raise ValueError
 
     # record labels
     tf.summary.histogram("labels", labels)
     tf.summary.histogram("logits", tf.nn.sigmoid(logits))
 
     # batch entropy
-    x_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels, name="entropy_per_ex")
+    ent_f = tf.nn.softmax_cross_entropy_with_logits if xent_type == 'softmax' \
+        else tf.nn.sigmoid_cross_entropy_with_logits
+    x_ent = ent_f(logits=logits, labels=labels, name="entropy_per_ex")
     x_ent_mean = tf.reduce_mean(x_ent, name="cross_entropy")
     tf.add_to_collection('losses', x_ent_mean)
 

@@ -114,9 +114,9 @@ def train():
         else:
             logits = model.inference(prints)
 
-        # TODO: change loss to use softmax for inference
         # calculate loss
-        loss = model_train.loss(logits, labels)
+        xent_type = 'sigmoid' if TRAIN_AUTOENCODER else 'softmax'
+        loss = model_train.loss(logits, labels, xent_type=xent_type)
 
         # build training operation
         train_op = model_train.train(loss, global_step)

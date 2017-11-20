@@ -11,6 +11,7 @@ import tensorflow as tf
 
 import model
 import ncinet_input
+import model_train
 
 TRAIN_AUTOENCODER = True
 WORK_DIR = model.WORK_DIR
@@ -80,10 +81,10 @@ def train():
 
         # TODO: change loss to use softmax for inference
         # calculate loss
-        loss = model.loss(logits, labels)
+        loss = model_train.loss(logits, labels)
 
         # build training operation
-        train_op = model.train(loss, global_step)
+        train_op = model_train.train(loss, global_step)
 
 
         batch_gen = ncinet_input.inputs(False, BATCH_SIZE, label_type="topos")

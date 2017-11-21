@@ -122,7 +122,7 @@ def train():
         train_op = model_train.train(loss, global_step)
 
         # Set up framework to run model.
-        batch_gen = ncinet_input.inputs(False, BATCH_SIZE, label_type="topos")
+        batch_gen = ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints', 'topologies'])
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)
 

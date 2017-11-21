@@ -156,4 +156,4 @@ def load_data_from_raws(work_dir=WORK_DIR):
     np.savez(os.path.join(work_dir, "data_full.npz"),
              **{'names': names_all, 'fingerprints': prints_all, 'scores': scores_all, 'topologies': topos_all})
 
-    print("data loaded and saved")
+    print("raw data loaded and saved")

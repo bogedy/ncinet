@@ -93,7 +93,7 @@ def eval_once(scaffold, eval_op):
         # accumulator for eval op.
         eval_acc = 0
 
-        batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE, label_type="topos")
+        batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE, data_types=['fingerprints', 'topologies'])
 
         while step < num_iter:
             print_batch, topo_batch = next(batch_gen)

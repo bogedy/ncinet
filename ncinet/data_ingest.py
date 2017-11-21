@@ -6,10 +6,10 @@ import os
 
 import numpy as np
 
-from ncinet_input import WORK_DIR
+from model import WORK_DIR
 
 FINGERPRINT_DIR = '/work/projects/SD2E-Community/prod/data/shared-q0-hackathon/team10/nci_rocklin'
-SCORE_PATH = os.path.join(WORK_DIR, 'output.csv')
+SCORE_PATH = os.path.join(WORK_DIR, '../output.csv')
 
 
 def get_fingerprint_filenames(directory):
@@ -86,13 +86,13 @@ def get_stab_score(score_table, name):
 
 def extract_topology(f_name):
     """Infers topology from filename and returns a code in [0,3]"""
-    if "HHH" in f_name:
+    if f_name.startswith("HHH_"):
         topology = 0
-    elif "EHEE" in f_name:
+    elif f_name.startswith("EHEE_"):
         topology = 1
-    elif "HEEH" in f_name:
+    elif f_name.startswith("HEEH_"):
         topology = 2
-    elif "EEHEE" in f_name:
+    elif f_name.startswith("EEHEE_"):
         topology = 3
     else:
         raise ValueError("Invalid name {}".format(f_name))
@@ -110,6 +110,7 @@ def load_fingerprint(f_name):
 # saves to a numpy archive
 def load_data_from_raws(work_dir=WORK_DIR):
     import shutil
+    import errno
 
     print("reloading raw data")
     work_dir = os.path.abspath(work_dir)
@@ -117,8 +118,11 @@ def load_data_from_raws(work_dir=WORK_DIR):
     # remove work directory (to clear any old sessions, etc)
     try:
         shutil.rmtree(work_dir)
-    except FileNotFoundError:
-        pass
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            pass
+        else:
+            raise
 
     # regenerate work dir
     os.makedirs(work_dir)
@@ -136,7 +140,7 @@ def load_data_from_raws(work_dir=WORK_DIR):
             design_name = get_design_name(f_name)
             score = get_stab_score(stability_table, design_name)
             fingerprint_arr = load_fingerprint(f_name)
-            topology = extract_topology(f_name)
+            topology = extract_topology(design_name)
 
             if score is not None:
                 design_names.append(design_name)

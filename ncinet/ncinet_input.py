@@ -33,12 +33,13 @@ def load_data_from_archive():
 
 
 # TODO: consider local normalization
-def normalize_prints(eval, train):
+def normalize_prints(eval_batch, train_batch):
     """Performs a min-max norm per-pixel based on training data"""
-    min_a, max_a = train.min(axis=0), train.max(axis=0)
+    min_a, max_a = train_batch.min(axis=0), train_batch.max(axis=0)
     dif = max_a - min_a
+    dif[dif == 0.] = 1.
 
-    return (eval - min_a) / dif, (train - min_a) / dif
+    return (eval_batch - min_a) / dif, (train_batch - min_a) / dif
 
 
 def split_data(fraction=0.1, n_splits=1, prefix="data"):
@@ -46,7 +47,7 @@ def split_data(fraction=0.1, n_splits=1, prefix="data"):
     names, fingerprints, scores, topols = load_data_from_archive()
     n_tot = scores.shape[0]
     assert names.shape[0] == fingerprints.shape[0] == scores.shape[0] == topols.shape[0]
-    n_eval = n_tot * fraction
+    n_eval = int(np.floor(n_tot * fraction))
 
     for i in range(n_splits):
         # split into eval and train data
@@ -59,7 +60,7 @@ def split_data(fraction=0.1, n_splits=1, prefix="data"):
         eval_score = scores[idx_shuffle[:n_eval]]
         eval_topol = topols[idx_shuffle[:n_eval]]
 
-        train_names = names[idx_shuffle[n_eval]]
+        train_names = names[idx_shuffle[n_eval:]]
         train_print = fingerprints[idx_shuffle[n_eval:]]
         train_score = scores[idx_shuffle[n_eval:]]
         train_topol = topols[idx_shuffle[n_eval:]]
@@ -80,7 +81,7 @@ def split_data(fraction=0.1, n_splits=1, prefix="data"):
 def load_data(eval_data, new_split=False, reload_data=False):
 
     # check archive existence
-    data_file = "data_eval_01.npz" if eval_data else "data_train_01.npz"
+    data_file = "data_eval_00.npz" if eval_data else "data_train_00.npz"
     data_file = os.path.join(WORK_DIR, data_file)
 
     if reload_data:

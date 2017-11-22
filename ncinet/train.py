@@ -128,7 +128,7 @@ def train():
 
         def add_noise(x, factor):
             noise = np.random.randn(*x.shape)
-            x += factor*noise
+            x = x + factor*noise
             return np.clip(x, 0., 1.)
 
         with tf.train.MonitoredTrainingSession(

@@ -52,7 +52,7 @@ def bottom_convnet(prints, training=True):
                        collection=collection, wd=0.001, name="conv3")
     _activation_summary(conv3)
     # 13x13x16
-    encoded = tf.layers.max_pooling2d(conv3, pool_size=(2, 2), strides=(2, 2), padding='same')
+    encoded = tf.layers.max_pooling2d(conv3, pool_size=(2, 2), strides=(2, 2), padding='same', name="encoded")
 
     return encoded
 
@@ -89,9 +89,6 @@ def autoencoder(prints, training=True):
     return predict
 
 
-# main nn model
-# TODO: update num logits (and output in general)
-# TODO: generalize to allow hyperparameter optimization
 def inference(prints, training=True):
     """Constructs the inference network"""
     tf.summary.image("fingerprints", prints)

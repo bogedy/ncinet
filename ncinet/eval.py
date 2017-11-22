@@ -88,12 +88,18 @@ def eval_once(scaffold, eval_op):
         batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE,
                                         data_types=['names', 'fingerprints', 'topologies'])
 
-        num_iter = int(math.ceil(len(batch_gen) / BATCH_SIZE))
-        total_sample_count = num_iter * BATCH_SIZE
+        total_sample_count = len(batch_gen)
+        num_iter = int(math.ceil(total_sample_count / BATCH_SIZE))
         step = 0
 
         # accumulator for eval op.
         eval_acc = 0
+
+        # TODO: provide switches for these ops
+        input_acc = []
+        activations_acc = []
+        op_name = "fc2:0" if not EVAL_AUTOENCODER else "encoded:0"
+        activations_op = sess.graph.get_tensor_by_name(op_name)
 
         while step < num_iter:
             name_batch, print_batch, topo_batch = next(batch_gen)
@@ -104,17 +110,22 @@ def eval_once(scaffold, eval_op):
             else:
                 label_batch = topo_batch
 
-            eval_val = sess.run([eval_op],
-                                feed_dict={'prints:0': print_batch,
-                                           'labels:0': label_batch})
+            eval_val, activations = sess.run([eval_op, activations_op],
+                                             feed_dict={'prints:0': print_batch,
+                                                        'labels:0': label_batch})
+
+            # Collect other data
+            input_acc.append((name_batch, print_batch, topo_batch))
+            activations_acc.append(activations)
 
             eval_acc += eval_val[0]
             step += 1
 
         # summary steps
         summary = tf.Summary()
+        all_eval_data = next(ncinet_input.input(USE_EVAL_DATA, total_sample_count, ['fingerprints']))
         summary.ParseFromString(sess.run(scaffold['summary_op'],
-                                         feed_dict={'prints:0': print_batch}))
+                                         feed_dict={'prints:0': all_eval_data}))
 
         if EVAL_AUTOENCODER:
             avg_error = eval_acc / total_sample_count
@@ -127,6 +138,15 @@ def eval_once(scaffold, eval_op):
             summary.value.add(tag='precision', simple_value=precision)
 
         scaffold['summary_writer'].add_summary(summary, global_step)
+
+        # consolidate and save the recorded data
+        inputs = map(np.concatenate, zip(*input_acc))
+        activations = np.concatenate(activations_acc)
+        titles = ['names', 'fingerprints', 'topologies', 'activations']
+        results = dict(zip(titles, inputs + activations))
+
+        with open(os.path.join(WORK_DIR, "eval_results.npz"), 'w') as result_file:
+            np.savez(result_file, **results)
 
         #trained_vars = {}
         #for var in tf.trainable_variables()+tf.model_variables():

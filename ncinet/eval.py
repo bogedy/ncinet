@@ -18,7 +18,6 @@ import ncinet_input
 WORK_DIR = model.WORK_DIR
 
 BATCH_SIZE = 100
-NUM_EVAL = 600
 USE_EVAL_DATA = True
 
 EVAL_AUTOENCODER = True
@@ -86,17 +85,18 @@ def eval_once(scaffold, eval_op):
             raise RuntimeError
 
         # runtime parameters
-        num_iter = int(math.ceil(NUM_EVAL / BATCH_SIZE))
+        batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE,
+                                        data_types=['names', 'fingerprints', 'topologies'])
+
+        num_iter = int(math.ceil(len(batch_gen) / BATCH_SIZE))
         total_sample_count = num_iter * BATCH_SIZE
         step = 0
 
         # accumulator for eval op.
         eval_acc = 0
 
-        batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE, data_types=['fingerprints', 'topologies'])
-
         while step < num_iter:
-            print_batch, topo_batch = next(batch_gen)
+            name_batch, print_batch, topo_batch = next(batch_gen)
             print_batch = list(print_batch)
 
             if EVAL_AUTOENCODER:

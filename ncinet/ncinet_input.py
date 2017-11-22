@@ -132,9 +132,29 @@ def inf_datagen(arrays, batch, repeat=True):
                 arrays[i] = arrays[i][shuffle]
 
 
+class DataStream:
+    """Wraps a generator to provide length"""
+    def __init__(self, length, generator):
+        self._length = length
+        self._gen = generator
+
+    def __len__(self):
+        return self._length
+
+    def __next__(self):
+        return next(self._gen)
+
+    def next(self):
+        """For python2 compatibility."""
+        return self.__next__()
+
+
 # TODO: refactor to use Dataset objects
 def inputs(eval_data, batch_size, data_types=('fingerprints', 'topologies')):
     # mapping of data
     data_dict = load_data(eval_data)
     data_arrs = [data_dict[k] for k in data_types if k in data_dict]
-    return inf_datagen(data_arrs, batch_size, not eval_data)
+    data_len = len(data_arrs[0])
+    data_gen = inf_datagen(data_arrs, batch_size, not eval_data)
+
+    return DataStream(data_len, data_gen)

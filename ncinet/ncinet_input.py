@@ -114,7 +114,7 @@ def inf_datagen(arrays, batch, repeat=True):
         for i in range(n_batch):
             if (i+1) * batch <= n_ell:
                 s, e = i*batch, (i+1)*batch
-                yield tuple(a[s, e] for a in arrays)
+                yield tuple(a[s:e] for a in arrays)
             else:
                 assert i*batch < n_ell
                 yield tuple(a[i*batch:] for a in arrays)

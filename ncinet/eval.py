@@ -27,6 +27,7 @@ INF_DIR = os.path.join(WORK_DIR, "train_inf")
 TRAIN_DIR = AUTO_DIR if EVAL_AUTOENCODER else INF_DIR
 
 RUN_ONCE = True
+WRITE_DATA = False
 EVAL_INTERVAL = 120
 
 
@@ -96,10 +97,13 @@ def eval_once(scaffold, eval_op):
         eval_acc = 0
 
         # TODO: provide switches for these ops
-        input_acc = []
-        activations_acc = []
-        op_name = "fc2:0" if not EVAL_AUTOENCODER else "encoded:0"
-        activations_op = sess.graph.get_tensor_by_name(op_name)
+        data_ops = []
+        if WRITE_DATA:
+            input_acc = []
+            data_acc = []
+            op_name = "fc2:0" if not EVAL_AUTOENCODER else "encoded/MaxPool:0"
+            activations_op = sess.graph.get_tensor_by_name(op_name)
+            data_ops.append(activations_op)
 
         while step < num_iter:
             name_batch, print_batch, topo_batch = next(batch_gen)
@@ -110,20 +114,21 @@ def eval_once(scaffold, eval_op):
             else:
                 label_batch = topo_batch
 
-            eval_val, activations = sess.run([eval_op, activations_op],
-                                             feed_dict={'prints:0': print_batch,
-                                                        'labels:0': label_batch})
+            eval_val, *data_val = sess.run([eval_op, *data_ops],
+                                  feed_dict={'prints:0': print_batch,
+                                             'labels:0': label_batch})
 
             # Collect other data
-            input_acc.append((name_batch, print_batch, topo_batch))
-            activations_acc.append(activations)
+            if WRITE_DATA:
+                input_acc.append((name_batch, print_batch, topo_batch))
+                data_acc.append(data_val)
 
-            eval_acc += eval_val[0]
+            eval_acc += eval_val
             step += 1
 
         # summary steps
         summary = tf.Summary()
-        all_eval_data = next(ncinet_input.input(USE_EVAL_DATA, total_sample_count, ['fingerprints']))
+        all_eval_data = list(next(ncinet_input.inputs(USE_EVAL_DATA, total_sample_count, ['fingerprints']))[0])
         summary.ParseFromString(sess.run(scaffold['summary_op'],
                                          feed_dict={'prints:0': all_eval_data}))
 
@@ -140,13 +145,15 @@ def eval_once(scaffold, eval_op):
         scaffold['summary_writer'].add_summary(summary, global_step)
 
         # consolidate and save the recorded data
-        inputs = map(np.concatenate, zip(*input_acc))
-        activations = np.concatenate(activations_acc)
-        titles = ['names', 'fingerprints', 'topologies', 'activations']
-        results = dict(zip(titles, inputs + activations))
+        if WRITE_DATA:
+            file_name = "eval_results_ae.npz" if EVAL_AUTOENCODER else "eval_results_inf.npz"
+            inputs = map(np.concatenate, zip(*input_acc))
+            data = map(np.concatenate, zip(*data_acc))
+            titles = ['names', 'fingerprints', 'topologies', 'activations']
+            results = dict(zip(titles, list(inputs) + list(data)))
 
-        with open(os.path.join(WORK_DIR, "eval_results.npz"), 'w') as result_file:
-            np.savez(result_file, **results)
+            with open(os.path.join(WORK_DIR, "eval_results_ae.npz"), 'wb') as result_file:
+                np.savez(result_file, **results)
 
         #trained_vars = {}
         #for var in tf.trainable_variables()+tf.model_variables():

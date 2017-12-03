@@ -87,7 +87,8 @@ def eval_once(scaffold, eval_op):
 
         # runtime parameters
         batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE,
-                                        data_types=['names', 'fingerprints', 'topologies'])
+                                        data_types=['names', 'fingerprints', 'topologies'],
+                                        repeat=False)
 
         total_sample_count = len(batch_gen)
         num_iter = int(math.ceil(total_sample_count / BATCH_SIZE))
@@ -101,7 +102,7 @@ def eval_once(scaffold, eval_op):
         if WRITE_DATA:
             input_acc = []
             data_acc = []
-            op_name = "fc2:0" if not EVAL_AUTOENCODER else "encoded/MaxPool:0"
+            op_name = "fc1/Relu:0" if not EVAL_AUTOENCODER else "encoded/MaxPool:0"
             activations_op = sess.graph.get_tensor_by_name(op_name)
             data_ops.append(activations_op)
 
@@ -128,9 +129,9 @@ def eval_once(scaffold, eval_op):
 
         # summary steps
         summary = tf.Summary()
-        all_eval_data = list(next(ncinet_input.inputs(USE_EVAL_DATA, total_sample_count, ['fingerprints']))[0])
-        summary.ParseFromString(sess.run(scaffold['summary_op'],
-                                         feed_dict={'prints:0': all_eval_data}))
+        #all_eval_data = list(next(ncinet_input.inputs(USE_EVAL_DATA, total_sample_count, ['fingerprints']))[0])
+        #summary.ParseFromString(sess.run(scaffold['summary_op'],
+        #                                 feed_dict={'prints:0': all_eval_data}))
 
         if EVAL_AUTOENCODER:
             avg_error = eval_acc / total_sample_count
@@ -146,13 +147,16 @@ def eval_once(scaffold, eval_op):
 
         # consolidate and save the recorded data
         if WRITE_DATA:
-            file_name = "eval_results_ae.npz" if EVAL_AUTOENCODER else "eval_results_inf.npz"
+            if USE_EVAL_DATA:
+                file_name = "eval_results_ae.npz" if EVAL_AUTOENCODER else "eval_results_inf.npz"
+            else:
+                file_name = "train_results_ae.npz" if EVAL_AUTOENCODER else "train_results_inf.npz"
             inputs = map(np.concatenate, zip(*input_acc))
             data = map(np.concatenate, zip(*data_acc))
             titles = ['names', 'fingerprints', 'topologies', 'activations']
             results = dict(zip(titles, list(inputs) + list(data)))
 
-            with open(os.path.join(WORK_DIR, "eval_results_ae.npz"), 'wb') as result_file:
+            with open(os.path.join(WORK_DIR, file_name), 'wb') as result_file:
                 np.savez(result_file, **results)
 
         #trained_vars = {}

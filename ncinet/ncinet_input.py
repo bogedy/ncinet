@@ -150,11 +150,11 @@ class DataStream:
 
 
 # TODO: refactor to use Dataset objects
-def inputs(eval_data, batch_size, data_types=('fingerprints', 'topologies')):
+def inputs(eval_data, batch_size, data_types=('fingerprints', 'topologies'), repeat=True):
     # mapping of data
     data_dict = load_data(eval_data)
     data_arrs = [data_dict[k] for k in data_types if k in data_dict]
     data_len = len(data_arrs[0])
-    data_gen = inf_datagen(data_arrs, batch_size, not eval_data)
+    data_gen = inf_datagen(data_arrs, batch_size, repeat)
 
     return DataStream(data_len, data_gen)

@@ -13,13 +13,16 @@ import model
 import ncinet_input
 import model_train
 
-TRAIN_AUTOENCODER = True
+# TODO: streamline the differences between training different models
+
+TRAIN_AUTOENCODER = False
+INF_TYPE = "sign"
 WORK_DIR = model.WORK_DIR
 
 LOG_FREQUENCY = 20
 BATCH_SIZE = 32
 AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
-INF_TRAIN_DIR = os.path.join(WORK_DIR, "train_inf")
+INF_TRAIN_DIR = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
 TRAIN_DIR = ""
 MAX_STEPS = 100000
 
@@ -106,13 +109,24 @@ def train():
             labels = labels_input
         else:
             labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
-            labels = tf.one_hot(labels_input, 4, dtype=tf.float32)
+            if INF_TYPE == "topo":
+                labels = tf.one_hot(labels_input, 4, dtype=tf.float32)
+            elif INF_TYPE == "sign":
+                labels_index = tf.floordiv(tf.add(tf.cast(tf.sign(labels_input), tf.int32), 1), 2)
+                labels = tf.one_hot(labels_index, 2, dtype=tf.float32)
+            else:
+                raise ValueError
 
         # apply the nn
         if TRAIN_AUTOENCODER:
             logits = model.autoencoder(prints)
         else:
-            logits = model.inference(prints)
+            if INF_TYPE == "topo":
+                logits = model.inference(prints)
+            elif INF_TYPE == "sign":
+                logits = model.sign_classify(prints)
+            else:
+                raise ValueError
 
         # calculate loss
         xent_type = 'sigmoid' if TRAIN_AUTOENCODER else 'softmax'
@@ -122,7 +136,12 @@ def train():
         train_op = model_train.train(loss, global_step)
 
         # Set up framework to run model.
-        batch_gen = ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints', 'topologies'])
+        if TRAIN_AUTOENCODER:
+            batch_gen = ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints'])
+        else:
+            label_name = "topologies" if INF_TYPE == "topo" else "scores"
+            batch_gen = ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints', label_name])
+
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)
 
@@ -141,13 +160,12 @@ def train():
                    _LoggerHook(loss)]) as mon_sess:
 
             while not mon_sess.should_stop():
-                print_batch, topo_batch = next(batch_gen)
-
                 if TRAIN_AUTOENCODER:
+                    print_batch = next(batch_gen)[0]
                     label_batch = print_batch
                     print_batch = add_noise(print_batch, 0.1)
                 else:
-                    label_batch = topo_batch
+                    print_batch, label_batch = next(batch_gen)
 
                 print_batch = list(print_batch)
 

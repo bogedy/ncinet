@@ -101,3 +101,15 @@ def inference(prints, training=True):
     logits = fc_layer(fc1, 4, name="fc2", activation=None, collection=NciKeys.INF_VARIABLES, training=training)
     _activation_summary(logits)
     return logits
+
+
+def sign_classify(prints, training=True):
+    """Construct a network to classify stability score > 0"""
+    tf.summary.image("fingerprints", prints)
+    base = bottom_convnet(prints, training=False)
+    _activation_summary(base)
+    fc1 = fc_layer(base, 128, name="fc1", collection=NciKeys.INF_VARIABLES, training=training)
+    _activation_summary(fc1)
+    logits = fc_layer(fc1, 2, name="fc2", activation=None, collection=NciKeys.INF_VARIABLES, training=training)
+    _activation_summary(logits)
+    return logits

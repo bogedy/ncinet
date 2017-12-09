@@ -11,21 +11,14 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 
-import model
-import ncinet_input
+import ncinet.model
+import ncinet.ncinet_input
 
+from .model import NciKeys, WORK_DIR
 
-WORK_DIR = model.WORK_DIR
 
 BATCH_SIZE = 100
 USE_EVAL_DATA = True
-
-EVAL_AUTOENCODER = False
-INF_TYPE = "sign"
-EVAL_DIR = os.path.join(WORK_DIR, "eval_ae" if EVAL_AUTOENCODER else "eval_inf_" + INF_TYPE)
-AUTO_DIR = os.path.join(WORK_DIR, "train_ae")
-INF_DIR = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
-TRAIN_DIR = AUTO_DIR if EVAL_AUTOENCODER else INF_DIR
 
 RUN_ONCE = False
 WRITE_DATA = False
@@ -54,11 +47,11 @@ def _make_scaffold(graph, autoencoder=True):
             return global_step
 
         if autoencoder:
-            saver = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
-                                   + tf.get_collection(model.NciKeys.AE_DECODER_VARIABLES))
+            saver = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
+                                   + tf.get_collection(NciKeys.AE_DECODER_VARIABLES))
         else:
-            saver = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
-                                   + tf.get_collection(model.NciKeys.INF_VARIABLES))
+            saver = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
+                                   + tf.get_collection(NciKeys.INF_VARIABLES))
 
         scaffold = dict(init_fn=lambda scaffold, sess: load_trained(scaffold['saver'], sess),
                         ready_op=tf.report_uninitialized_variables(),
@@ -87,9 +80,9 @@ def eval_once(scaffold, eval_op):
             raise RuntimeError
 
         # runtime parameters
-        batch_gen = ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE,
-                                        data_types=['names', 'fingerprints', 'topologies'],
-                                        repeat=False)
+        batch_gen = ncinet.ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE,
+                                               data_types=['names', 'fingerprints', 'topologies'],
+                                               repeat=False)
 
         total_sample_count = len(batch_gen)
         num_iter = int(math.ceil(total_sample_count / BATCH_SIZE))
@@ -180,12 +173,12 @@ def evaluate():
 
         # Build a Graph to run the model
         if EVAL_AUTOENCODER:
-            logits = model.autoencoder(prints, training=False)
+            logits = ncinet.model.autoencoder(prints, training=False)
         else:
             if INF_TYPE == "topo":
-                logits = model.inference(prints, training=False)
+                logits = ncinet.model.inference(prints, training=False)
             elif INF_TYPE == "sign":
-                logits = model.sign_classify(prints, training=False)
+                logits = ncinet.model.sign_classify(prints, training=False)
             else:
                 raise ValueError
  
@@ -212,12 +205,27 @@ def evaluate():
             time.sleep(EVAL_INTERVAL)
 
 
-def main(argv=None):
+# TODO: remove globals
+def main(options):
+    global EVAL_AUTOENCODER
+    global INF_TYPE
+
+    EVAL_AUTOENCODER = (options.model == 'AE')
+    INF_TYPE = options.model
+
+    global EVAL_DIR
+    global TRAIN_DIR
+
+    EVAL_DIR = os.path.join(WORK_DIR, "eval_ae" if EVAL_AUTOENCODER else "eval_inf_" + INF_TYPE)
+    AUTO_DIR = os.path.join(WORK_DIR, "train_ae")
+    INF_DIR = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
+    TRAIN_DIR = AUTO_DIR if EVAL_AUTOENCODER else INF_DIR
+
     if tf.gfile.Exists(EVAL_DIR):
         tf.gfile.DeleteRecursively(EVAL_DIR)
         tf.gfile.MakeDirs(EVAL_DIR)
     evaluate()
 
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()

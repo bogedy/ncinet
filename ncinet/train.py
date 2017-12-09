@@ -9,20 +9,16 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 
-import model
-import ncinet_input
-import model_train
+import ncinet.model
+import ncinet.ncinet_input
+import ncinet.model_train
+
+from ncinet.model import NciKeys, WORK_DIR
 
 # TODO: streamline the differences between training different models
 
-TRAIN_AUTOENCODER = False
-INF_TYPE = "sign"
-WORK_DIR = model.WORK_DIR
-
 LOG_FREQUENCY = 20
 BATCH_SIZE = 32
-AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
-INF_TRAIN_DIR = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
 TRAIN_DIR = ""
 MAX_STEPS = 100000
 
@@ -68,15 +64,15 @@ def _make_scaffold(graph):
         ready_op = tf.report_uninitialized_variables()
 
         if TRAIN_AUTOENCODER:
-            saver_auto = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
-                                        + tf.get_collection(model.NciKeys.AE_DECODER_VARIABLES))
+            saver_auto = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
+                                        + tf.get_collection(NciKeys.AE_DECODER_VARIABLES))
             scaffold = tf.train.Scaffold(init_op=init_op, ready_op=ready_op,
                                          summary_op=summary,
                                          saver=saver_auto)
         else:
-            saver_auto = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES))
-            saver_inf = tf.train.Saver(tf.get_collection(model.NciKeys.AE_ENCODER_VARIABLES)
-                                       + tf.get_collection(model.NciKeys.INF_VARIABLES))
+            saver_auto = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES))
+            saver_inf = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
+                                       + tf.get_collection(NciKeys.INF_VARIABLES))
 
             def load_trained(scaffold, sess):
                 # restore vars
@@ -119,28 +115,28 @@ def train():
 
         # apply the nn
         if TRAIN_AUTOENCODER:
-            logits = model.autoencoder(prints)
+            logits = ncinet.model.autoencoder(prints)
         else:
             if INF_TYPE == "topo":
-                logits = model.inference(prints)
+                logits = ncinet.model.inference(prints)
             elif INF_TYPE == "sign":
-                logits = model.sign_classify(prints)
+                logits = ncinet.model.sign_classify(prints)
             else:
                 raise ValueError
 
         # calculate loss
         xent_type = 'sigmoid' if TRAIN_AUTOENCODER else 'softmax'
-        loss = model_train.loss(logits, labels, xent_type=xent_type)
+        loss = ncinet.model_train.loss(logits, labels, xent_type=xent_type)
 
         # build training operation
-        train_op = model_train.train(loss, global_step)
+        train_op = ncinet.model_train.train(loss, global_step)
 
         # Set up framework to run model.
         if TRAIN_AUTOENCODER:
-            batch_gen = ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints'])
+            batch_gen = ncinet.ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints'])
         else:
             label_name = "topologies" if INF_TYPE == "topo" else "scores"
-            batch_gen = ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints', label_name])
+            batch_gen = ncinet.ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints', label_name])
 
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)
@@ -174,13 +170,25 @@ def train():
                                         labels_input: label_batch})
 
 
-def main():
+# TODO: remove these globals
+def main(options):
     global TRAIN_DIR
+    global TRAIN_AUTOENCODER
+    global INF_TYPE
+
+    TRAIN_AUTOENCODER = (options.model == 'AE')
+    INF_TYPE = options.model
+
+    global AE_TRAIN_DIR
+    AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
+    global INF_TRAIN_DIR
+    INF_TRAIN_DIR = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
+
     TRAIN_DIR = AE_TRAIN_DIR if TRAIN_AUTOENCODER else INF_TRAIN_DIR
     if tf.gfile.Exists(TRAIN_DIR):
         tf.gfile.DeleteRecursively(TRAIN_DIR)
         tf.gfile.MakeDirs(TRAIN_DIR)
     train()
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()

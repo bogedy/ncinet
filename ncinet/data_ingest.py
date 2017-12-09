@@ -3,10 +3,9 @@ Ingest data and store it in numpy arrays.
 """
 
 import os
-
 import numpy as np
 
-from model import WORK_DIR
+from .model import WORK_DIR
 
 FINGERPRINT_DIR = '/work/projects/SD2E-Community/prod/data/shared-q0-hackathon/team10/nci_rocklin'
 SCORE_PATH = os.path.join(WORK_DIR, '../output.csv')

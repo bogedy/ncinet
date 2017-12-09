@@ -8,10 +8,9 @@ import os
 
 import numpy as np
 
-import model
-from data_ingest import load_data_from_raws
+from .model import WORK_DIR
+from .data_ingest import load_data_from_raws
 
-WORK_DIR = model.WORK_DIR
 
 N_EVAL = 600
 

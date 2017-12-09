@@ -7,7 +7,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from layers import conv_layer, fc_layer, NciKeys
+from .layers import conv_layer, fc_layer, NciKeys
 
 # TODO: consider binding some actions to CPU
 

@@ -20,13 +20,14 @@ WORK_DIR = model.WORK_DIR
 BATCH_SIZE = 100
 USE_EVAL_DATA = True
 
-EVAL_AUTOENCODER = True
-EVAL_DIR = os.path.join(WORK_DIR, "eval_ae" if EVAL_AUTOENCODER else "eval_inf")
+EVAL_AUTOENCODER = False
+INF_TYPE = "sign"
+EVAL_DIR = os.path.join(WORK_DIR, "eval_ae" if EVAL_AUTOENCODER else "eval_inf_" + INF_TYPE)
 AUTO_DIR = os.path.join(WORK_DIR, "train_ae")
-INF_DIR = os.path.join(WORK_DIR, "train_inf")
+INF_DIR = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
 TRAIN_DIR = AUTO_DIR if EVAL_AUTOENCODER else INF_DIR
 
-RUN_ONCE = True
+RUN_ONCE = False
 WRITE_DATA = False
 EVAL_INTERVAL = 120
 
@@ -181,14 +182,22 @@ def evaluate():
         if EVAL_AUTOENCODER:
             logits = model.autoencoder(prints, training=False)
         else:
-            logits = model.inference(prints, training=False)
-
+            if INF_TYPE == "topo":
+                logits = model.inference(prints, training=False)
+            elif INF_TYPE == "sign":
+                logits = model.sign_classify(prints, training=False)
+            else:
+                raise ValueError
+ 
         # Build the eval operations.
         if EVAL_AUTOENCODER:
             # Calculate norm of difference.
             norms = tf.norm(tf.subtract(labels, logits), ord="fro", axis=[1, 2])
             eval_op = tf.divide(tf.reduce_sum(norms), 100*100)
         else:
+            if INF_TYPE == "sign":
+                labels = tf.floordiv(tf.add(tf.cast(tf.sign(labels), tf.int32), 1), 2)
+
             # Calculate precision @1.
             top_k = tf.nn.in_top_k(logits, labels, 1)
             eval_op = tf.count_nonzero(top_k)

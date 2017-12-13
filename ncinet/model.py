@@ -41,7 +41,7 @@ def bottom_convnet(prints, training=True):
     for k in range(n_layers):
         name = "conv{}".format(k)
         k_size = (k_size_par[k], k_size_par[k])
-        conv = conv_layer(inputs=pool, filters=n_filter_par[k], kernel_size=k_size, training=training,
+        conv = conv_layer(inputs=pool, filters=n_filter_par[k], kernel_size=k_size, trainable=training,
                           collection=collection, batch_norm=(k == 0), wd=wd_par[k], name=name)
         _activation_summary(conv)
         pool = tf.layers.max_pooling2d(conv, pool_size=(2, 2), strides=(2, 2), padding='same')
@@ -96,11 +96,11 @@ def topo_classify(prints, training=True):
     fc = encoded
     for k in range(n_hidden):
         name = "fc{}".format(k)
-        fc = fc_layer(fc, dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, training=training)
+        fc = fc_layer(fc, dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, trainable=training)
         _activation_summary(fc)
 
     logits = fc_layer(fc, 4, name="fc{}".format(n_hidden), activation=None,
-                      collection=NciKeys.INF_VARIABLES, training=training)
+                      collection=NciKeys.INF_VARIABLES, trainable=training)
     _activation_summary(logits)
 
     return logits
@@ -118,11 +118,11 @@ def sign_classify(prints, training=True):
     fc = encoded
     for k in range(n_hidden):
         name = "fc{}".format(k)
-        fc = fc_layer(fc, dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, training=training)
+        fc = fc_layer(fc, dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, trainable=training)
         _activation_summary(fc)
 
     logits = fc_layer(fc, 2, name="fc{}".format(n_hidden), activation=None,
-                      collection=NciKeys.INF_VARIABLES, training=training)
+                      collection=NciKeys.INF_VARIABLES, trainable=training)
     _activation_summary(logits)
 
     return logits

@@ -9,9 +9,7 @@ import tensorflow as tf
 
 
 class NciKeys:
-    """
-    Keys for grouping different sections of the network
-    """
+    """Keys for grouping different sections of the network"""
     AE_ENCODER_VARIABLES = "_NciKeys_ae_encoder_var"
     AE_DECODER_VARIABLES = "_NciKeys_ae_decoder_var"
     INF_VARIABLES = "_NciKeys_inf_var"
@@ -57,26 +55,27 @@ def _variable_with_weight_decay(name, shape, initializer, weight_decay, trainabl
     return var
 
 
-# TODO: make consistent with tf.layer.conv2d
 def conv_layer(inputs, filters, kernel_size, padding='SAME',
-               activation=tf.nn.relu, training=True, collection=None,
+               activation=tf.nn.relu, trainable=True, collection=None,
                batch_norm=False, wd=None, name='conv'):
+    """Wraps a conv2D layer with biases, normalization, and regularization"""
 
     with tf.variable_scope(name):
         channels = inputs.get_shape().as_list()[-1]
         shape = [kernel_size[0], kernel_size[1], channels, filters]
         ker = _variable_with_weight_decay(name="Kernel", shape=shape,
                                           initializer=weight_var_init(np.prod(shape[:-1])),
-                                          weight_decay=wd, trainable=training)
+                                          weight_decay=wd, trainable=trainable)
         if collection:
             tf.add_to_collection(collection, ker)
 
+        # Apply the conv layer
         conv = tf.nn.conv2d(inputs, ker, strides=[1, 1, 1, 1], padding=padding)
 
         if batch_norm:
-            pre_act = batch_norm_layer(conv, in_type='conv', collection=collection, training=training)
+            pre_act = batch_norm_layer(conv, in_type='conv', collection=collection, training=trainable)
         else:
-            b = tf.Variable(tf.constant(0.01, shape=[filters]), name="Bias", trainable=training)
+            b = tf.Variable(tf.constant(0.01, shape=[filters]), name="Bias", trainable=trainable)
             if collection:
                 tf.add_to_collection(collection, b)
             pre_act = tf.nn.bias_add(conv, b)
@@ -87,8 +86,9 @@ def conv_layer(inputs, filters, kernel_size, padding='SAME',
 
 
 def fc_layer(inputs, units, activation=tf.nn.relu,
-             wd=None, training=True, use_bias=True,
+             wd=None, trainable=True, use_bias=True,
              batch_norm=False, collection=None, name="fc"):
+    """Wraps a fully connected layer with bias, regularization, normalization"""
 
     with tf.variable_scope(name):
         # flatten the input to [batch, dim]
@@ -101,7 +101,7 @@ def fc_layer(inputs, units, activation=tf.nn.relu,
                                         shape=[in_shape[1], units],
                                         initializer=weight_var_init(in_shape[1]),
                                         weight_decay=wd,
-                                        trainable=training)
+                                        trainable=trainable)
 
         if collection:
             tf.add_to_collection(collection, w)
@@ -110,9 +110,9 @@ def fc_layer(inputs, units, activation=tf.nn.relu,
         pre_act = tf.matmul(inputs, w)
 
         if batch_norm:
-            pre_act = batch_norm_layer(pre_act, in_type='fc', collection=collection, training=training)
+            pre_act = batch_norm_layer(pre_act, in_type='fc', collection=collection, training=trainable)
         elif use_bias:
-            b = tf.Variable(tf.constant(0.01, shape=[units]), name="Bias", trainable=training)
+            b = tf.Variable(tf.constant(0.01, shape=[units]), name="Bias", trainable=trainable)
             if collection:
                 tf.add_to_collection(collection, b)
             pre_act = tf.nn.bias_add(pre_act, b)
@@ -123,9 +123,19 @@ def fc_layer(inputs, units, activation=tf.nn.relu,
 
 
 def batch_norm_layer(inputs, in_type='conv', collection=None, training=True):
+    """
+    Batch normalization layer that maintains moving averages of
+    mean and var.
+    in_type: one of 'conv' or 'fc'
+    """
+
+    # Configuration parameters not currently exposed
     name = "batch_norm"
     avg_decay = 0.99
+    scale = True and training
+    offset = True and training
 
+    # Select the dimensions to normalize based on input type
     if in_type.lower() == 'conv':
         dims = [0, 1, 2]
     elif in_type.lower() == 'fc':
@@ -133,8 +143,6 @@ def batch_norm_layer(inputs, in_type='conv', collection=None, training=True):
     else:
         raise ValueError
 
-    scale = True and training
-    offset = True and training
     with tf.variable_scope(name):
         channels = inputs.get_shape().as_list()[-1]
         # initializers
@@ -154,8 +162,8 @@ def batch_norm_layer(inputs, in_type='conv', collection=None, training=True):
             mean, var = tf.nn.moments(inputs, axes=dims, keep_dims=False)
 
             # update averages
-            mean_avg = mean_avg.assign_sub((1 - avg_decay) * (mean_avg - mean))
-            var_avg = var_avg.assign_sub((1 - avg_decay) * (var_avg - var))
+            mean_avg = mean_avg.assign_sub((1 - avg_decay) * tf.subtract(mean_avg, mean))
+            var_avg = var_avg.assign_sub((1 - avg_decay) * tf.subtract(var_avg, var))
         else:
             mean, var = mean_avg, var_avg
 

@@ -177,7 +177,7 @@ def evaluate(topo=None):
             logits = ncinet.model.autoencoder(prints, training=False)
         else:
             if INF_TYPE == "topo":
-                logits = ncinet.model.inference(prints, training=False)
+                logits = ncinet.model.topo_classify(prints, training=False)
             elif INF_TYPE == "sign":
                 logits = ncinet.model.sign_classify(prints, training=False)
             else:

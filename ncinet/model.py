@@ -85,7 +85,7 @@ def autoencoder(prints, training=True):
     return predict
 
 
-def inference(prints, training=True):
+def topo_classify(prints, training=True):
     """Constructs the inference network"""
     tf.summary.image("fingerprints", prints)
     encoded = bottom_convnet(prints, training=False)

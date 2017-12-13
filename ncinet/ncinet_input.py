@@ -12,9 +12,6 @@ from .model import WORK_DIR
 from .data_ingest import load_data_from_raws
 
 
-N_EVAL = 600
-
-
 def load_data_from_archive():
     """Load full dataframe from processed archives."""
     # TODO: hardcoded param
@@ -41,9 +38,17 @@ def normalize_prints(eval_batch, train_batch):
     return (eval_batch - min_a) / dif, (train_batch - min_a) / dif
 
 
-def split_data(fraction=0.1, n_splits=1, prefix="data"):
+def split_data(fraction=0.1, n_splits=1, prefix="data", topo=None):
     # load data from main source
     names, fingerprints, scores, topols = load_data_from_archive()
+
+    # select for topology
+    if topo is not None:
+        names = names[topols == topo]
+        fingerprints = fingerprints[topols == topo]
+        scores = scores[topols == topo]
+        topols = topols[topols == topo]
+
     n_tot = scores.shape[0]
     assert names.shape[0] == fingerprints.shape[0] == scores.shape[0] == topols.shape[0]
     n_eval = int(np.floor(n_tot * fraction))
@@ -68,26 +73,30 @@ def split_data(fraction=0.1, n_splits=1, prefix="data"):
         eval_print, train_print = normalize_prints(eval_print, train_print)
 
         # save arrays
-        name_fstring = "{prefix}_{batch}_{num:02}.npz"
-        np.savez(os.path.join(WORK_DIR, name_fstring.format(prefix=prefix, batch="eval", num=i)),
+        name_fstring = "{prefix}_{batch}_{num:02}{t}.npz"
+        t_str = "" if topo is None else "_t{}".format(topo)
+        np.savez(os.path.join(WORK_DIR, name_fstring.format(prefix=prefix, batch="eval", num=i, t=t_str)),
                  **{'names': eval_names, 'fingerprints': eval_print, 'scores': eval_score, 'topologies': eval_topol})
 
-        np.savez(os.path.join(WORK_DIR, name_fstring.format(prefix=prefix, batch="train", num=i)),
+        np.savez(os.path.join(WORK_DIR, name_fstring.format(prefix=prefix, batch="train", num=i, t=t_str)),
                  **{'names': train_names, 'fingerprints': train_print, 'scores': train_score, 'topologies': train_topol})
 
 
 # load training or eval data. Potentially re_split data
-def load_data(eval_data, new_split=False, reload_data=False):
+def load_data(eval_data, new_split=False, reload_data=False, topo=None):
 
     # check archive existence
-    data_file = "data_eval_00.npz" if eval_data else "data_train_00.npz"
-    data_file = os.path.join(WORK_DIR, data_file)
+    # TODO: better file naming
+    data_file = "data_eval_00" if eval_data else "data_train_00"
+    if topo is not None:
+        data_file = data_file + "_t{}".format(topo)
+    data_file = os.path.join(WORK_DIR, data_file + ".npz")
 
     if reload_data:
         load_data_from_raws()
 
     if not os.path.exists(data_file) or new_split or reload_data:
-        split_data()
+        split_data(topo=topo)
 
     with np.load(data_file) as loaded_data:
         names = loaded_data['names']
@@ -149,9 +158,10 @@ class DataStream:
 
 
 # TODO: refactor to use Dataset objects
-def inputs(eval_data, batch_size, data_types=('fingerprints', 'topologies'), repeat=True):
+# TODO: streamline parameters on this fn
+def inputs(eval_data, batch_size, data_types=('fingerprints', 'topologies'), repeat=True, topo=None):
     # mapping of data
-    data_dict = load_data(eval_data)
+    data_dict = load_data(eval_data, topo=topo)
     data_arrs = [data_dict[k] for k in data_types if k in data_dict]
     data_len = len(data_arrs[0])
     data_gen = inf_datagen(data_arrs, batch_size, repeat)

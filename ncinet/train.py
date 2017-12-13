@@ -93,7 +93,7 @@ def _make_scaffold(graph):
         return scaffold
 
 
-def train():
+def train(topo=None):
     with tf.Graph().as_default() as g:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
@@ -133,10 +133,12 @@ def train():
 
         # Set up framework to run model.
         if TRAIN_AUTOENCODER:
-            batch_gen = ncinet.ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints'])
+            in_args = {'eval_data': False, 'batch_size': BATCH_SIZE, 'data_types': ['fingerprints']}
         else:
             label_name = "topologies" if INF_TYPE == "topo" else "scores"
-            batch_gen = ncinet.ncinet_input.inputs(eval_data=False, batch_size=BATCH_SIZE, data_types=['fingerprints', label_name])
+            in_args = {'eval_data': False, 'batch_size': BATCH_SIZE, 'data_types': ['fingerprints', label_name]}
+
+        batch_gen = ncinet.ncinet_input.inputs(topo=topo, **in_args)
 
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)
@@ -188,7 +190,7 @@ def main(options):
     if tf.gfile.Exists(TRAIN_DIR):
         tf.gfile.DeleteRecursively(TRAIN_DIR)
         tf.gfile.MakeDirs(TRAIN_DIR)
-    train()
+    train(topo=options.topo_restrict)
 
 #if __name__ == "__main__":
 #    main()

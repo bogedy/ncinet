@@ -33,6 +33,8 @@ def parse_args():
     parser.add_argument('--work_dir', action='store', type=str,
                         help="Directory to write model outputs")
 
+    parser.add_argument('--t_rest', action='store', type=int, dest='topo_restrict', default=None,
+                        help="Train model on topology T", metavar="T")
 
     # Training details (max steps, time, learning params, hyper params, checkpoint interval, ...)
 

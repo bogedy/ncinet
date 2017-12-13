@@ -62,7 +62,7 @@ def _make_scaffold(graph, autoencoder=True):
         return scaffold
 
 
-def eval_once(scaffold, eval_op):
+def eval_once(scaffold, eval_op, topo=None):
     """Run an operation once on the eval data.
     Args:
         scaffold: dict which approximates a tf.train.Scaffold
@@ -82,7 +82,8 @@ def eval_once(scaffold, eval_op):
         # runtime parameters
         batch_gen = ncinet.ncinet_input.inputs(USE_EVAL_DATA, BATCH_SIZE,
                                                data_types=['names', 'fingerprints', 'topologies'],
-                                               repeat=False)
+                                               repeat=False,
+                                               topo=topo)
 
         total_sample_count = len(batch_gen)
         num_iter = int(math.ceil(total_sample_count / BATCH_SIZE))
@@ -161,7 +162,7 @@ def eval_once(scaffold, eval_op):
         #    np.savez(vars_file, **trained_vars)
 
 
-def evaluate():
+def evaluate(topo=None):
     """Eval model for a number of steps."""
     with tf.Graph().as_default() as g:
         # Placeholders for nci prints and scores
@@ -199,7 +200,7 @@ def evaluate():
         scaffold = _make_scaffold(g, EVAL_AUTOENCODER)
 
         while True:
-            eval_once(scaffold, eval_op)
+            eval_once(scaffold, eval_op, topo=topo)
             if RUN_ONCE:
                 break
             time.sleep(EVAL_INTERVAL)
@@ -224,7 +225,7 @@ def main(options):
     if tf.gfile.Exists(EVAL_DIR):
         tf.gfile.DeleteRecursively(EVAL_DIR)
         tf.gfile.MakeDirs(EVAL_DIR)
-    evaluate()
+    evaluate(topo=options.topo_restrict)
 
 
 #if __name__ == '__main__':

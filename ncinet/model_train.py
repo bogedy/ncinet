@@ -17,6 +17,13 @@ LEARNING_RATE_DECAY_FACTOR = 0.05  # Learning rate decay factor.
 INITIAL_LEARNING_RATE = 0.005       # Initial learning rate.
 
 
+class config:
+    use_learning_rate_decay = True
+    num_epochs_per_decay = 350.0
+    learning_rate_decay_factor = 0.05
+    initial_learning_rate = 0.005
+
+
 def loss(logits, labels, xent_type="softmax"):
     """Sums L2Loss for trainable variables.
     Add summary for "Loss" and "Loss/avg".
@@ -87,16 +94,20 @@ def train(total_loss, global_step):
     """
 
     # Variables that affect learning rate.
-    #num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
-    #decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+    num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
+    decay_steps = int(num_batches_per_epoch * config.num_epochs_per_decay)
 
-    # Decay the learning rate exponentially based on the number of steps.
-    #lr = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-    #                                global_step,
-    #                                decay_steps,
-    #                                LEARNING_RATE_DECAY_FACTOR,
-    #                                staircase=True)
-    lr = tf.constant(INITIAL_LEARNING_RATE, name="learning_rate")
+    if config.use_learning_rate_decay:
+        # Decay the learning rate exponentially based on the number of steps.
+        # TODO: decide on staircase
+        lr = tf.train.exponential_decay(config.initial_learning_rate,
+                                        global_step,
+                                        decay_steps,
+                                        config.learning_rate_decay_factor,
+                                        staircase=True)
+    else:
+        lr = tf.constant(config.initial_learning_rate, name="learning_rate")
+
     tf.summary.scalar('learning_rate', lr)
 
     # Generate moving averages of all losses and associated summaries.

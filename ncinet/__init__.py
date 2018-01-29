@@ -4,6 +4,7 @@ foo
 
 __version__ = "0.2.0"
 
+import os
 
 # Directory where summaries and checkpoints are written.
 #WORK_DIR = '/work/05187/ams13/maverick/Working/TensorFlow/ncinet'

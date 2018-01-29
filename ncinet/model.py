@@ -9,10 +9,6 @@ from __future__ import print_function
 import tensorflow as tf
 from .layers import conv_layer, fc_layer, NciKeys
 
-# Directory where summaries and checkpoints are written.
-#WORK_DIR = '/work/05187/ams13/maverick/Working/TensorFlow/ncinet'
-WORK_DIR = 'C:/Users/schan/Documents/TF_run'
-
 
 def _activation_summary(x):
     """Helper to create summaries for activations.

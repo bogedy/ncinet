@@ -12,17 +12,8 @@ import os
 
 import numpy as np
 
-from .model import WORK_DIR
 from .data_ingest import load_data_from_raws
-
-
-class config:
-    archive_dir = WORK_DIR
-    full_archive_name = "data_full.npz"
-    archive_prefix = "data"
-    tt_tags = ("train", "eval")
-    n_folds = 5
-    xv_tags = ("xvTrain", "xvVal")
+from . import data_config as config
 
 
 def load_data_from_archive(archive_path):

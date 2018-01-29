@@ -5,18 +5,7 @@ Ingest data and store it in numpy arrays.
 import os
 import numpy as np
 
-from .model import WORK_DIR
-
-FINGERPRINT_DIR = '/work/projects/SD2E-Community/prod/data/shared-q0-hackathon/team10/nci_rocklin'
-SCORE_PATH = os.path.join(WORK_DIR, '../output.csv')
-ARCHIVE_DIR = WORK_DIR
-
-
-class config:
-    fingerprint_dir = FINGERPRINT_DIR
-    score_path = SCORE_PATH
-    archive_dir = ARCHIVE_DIR
-    archive_name = "data_full.npz"
+from . import data_config as config
 
 
 def get_fingerprint_filenames(directory):
@@ -182,7 +171,7 @@ def load_data_from_raws():
     topos_all = np.array(topos, dtype=np.int32)
 
     # save full files
-    np.savez(os.path.join(archive_dir, config.archive_name),
+    np.savez(os.path.join(archive_dir, config.full_archive_name),
              **{'names': names_all, 'fingerprints': prints_all, 'scores': scores_all, 'topologies': topos_all})
 
     print("raw data loaded and saved")

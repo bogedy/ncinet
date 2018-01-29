@@ -14,7 +14,8 @@ import tensorflow as tf
 import ncinet.model
 import ncinet.ncinet_input
 
-from .model import NciKeys, WORK_DIR
+from .model import NciKeys
+from . import WORK_DIR
 
 
 BATCH_SIZE = 100
@@ -226,7 +227,3 @@ def main(options):
         tf.gfile.DeleteRecursively(EVAL_DIR)
         tf.gfile.MakeDirs(EVAL_DIR)
     evaluate(topo=options.topo_restrict)
-
-
-#if __name__ == '__main__':
-#    main()

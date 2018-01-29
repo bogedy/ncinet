@@ -4,24 +4,10 @@ Constructs parts of the graph only used in training.
 
 import tensorflow as tf
 
-# TODO: these numbers are not correct. Should be set in ncinet_input
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 12000
-NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 600
-BATCH_SIZE = 32
+from . import training_config as config
 
-# TODO: enable learning rate decay
 # Constants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
-NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
-LEARNING_RATE_DECAY_FACTOR = 0.05  # Learning rate decay factor.
-INITIAL_LEARNING_RATE = 0.005       # Initial learning rate.
-
-
-class config:
-    use_learning_rate_decay = True
-    num_epochs_per_decay = 350.0
-    learning_rate_decay_factor = 0.05
-    initial_learning_rate = 0.005
 
 
 def loss(logits, labels, xent_type="softmax"):
@@ -94,7 +80,7 @@ def train(total_loss, global_step):
     """
 
     # Variables that affect learning rate.
-    num_batches_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN / BATCH_SIZE
+    num_batches_per_epoch = config.num_examples_per_epoch_train / config.batch_size
     decay_steps = int(num_batches_per_epoch * config.num_epochs_per_decay)
 
     if config.use_learning_rate_decay:

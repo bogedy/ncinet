@@ -12,18 +12,11 @@ import tensorflow as tf
 import ncinet.ncinet_input
 import ncinet.model_train
 
-from ncinet.model import NciKeys, WORK_DIR
+from ncinet.model import NciKeys
+from . import WORK_DIR
+from . import training_config as config
 
 # TODO: streamline the differences between training different models
-
-
-class config:
-    log_frequency = 20
-    batch_size = 32
-    max_steps = 100000
-    checkpoint_secs = 100
-    summary_steps = 50
-    train_dir = ""
 
 
 class _LoggerHook(tf.train.SessionRunHook):
@@ -63,6 +56,7 @@ class _LoggerHook(tf.train.SessionRunHook):
 
 
 def _make_scaffold(graph):
+    """Constructs a scaffold for training"""
     with graph.as_default():
         summary = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
@@ -79,9 +73,10 @@ def _make_scaffold(graph):
             saver_inf = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
                                        + tf.get_collection(NciKeys.INF_VARIABLES))
 
-            def load_trained(scaffold, sess):
+            def load_trained(_, sess):
+                """Load weights from a trained model"""
                 # restore vars
-                ckpt = tf.train.get_checkpoint_state(AE_TRAIN_DIR)
+                ckpt = tf.train.get_checkpoint_state(config.train_dir)
                 if ckpt and ckpt.model_checkpoint_path:
                     # Restores from checkpoint
                     with tf.variable_scope(tf.get_variable_scope()):
@@ -98,6 +93,8 @@ def _make_scaffold(graph):
         return scaffold
 
 
+# TODO: factor out graph construction (return "graph, input, output" from constructor)
+# TODO: model specific file that contains the necessary constructor functions?
 # TODO: remove topo param
 def train(topo=None):
     with tf.Graph().as_default() as g:
@@ -192,7 +189,6 @@ def main(options):
     TRAIN_AUTOENCODER = (options.model == 'AE')
     INF_TYPE = options.model
 
-    global AE_TRAIN_DIR
     AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
     inf_train_dir = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
 

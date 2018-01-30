@@ -172,14 +172,14 @@ def load_data(eval_data, topo=None, fold=None, new_split=False, reload_data=Fals
         load_data_from_raws()
     if new_tt_split:
         split_train_eval(topo=topo)
-    if new_xv_split:
+    if new_xv_split and (fold is not None):
         base_archive = tt_names[0] if not eval_data else tt_names[1]
         split_xval(base_archive, folds=config.n_folds, fraction=(1/config.n_folds))
 
     # Load data from selected archive
     a_names = tt_names if fold is None else xv_names
     a_idx = 1 if eval_data else 0
-    data_file = a_names[a_idx]
+    data_file = os.path.join(config.archive_dir, a_names[a_idx])
     data_dict = load_data_from_archive(data_file)
     n_tot = next(iter(data_dict.values())).shape[0]
     assert False not in [a.shape[0] == n_tot for a in data_dict.values()]

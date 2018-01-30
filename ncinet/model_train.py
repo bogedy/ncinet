@@ -85,12 +85,10 @@ def train(total_loss, global_step):
 
     if config.use_learning_rate_decay:
         # Decay the learning rate exponentially based on the number of steps.
-        # TODO: decide on staircase
         lr = tf.train.exponential_decay(config.initial_learning_rate,
                                         global_step,
                                         decay_steps,
-                                        config.learning_rate_decay_factor,
-                                        staircase=True)
+                                        config.learning_rate_decay_factor)
     else:
         lr = tf.constant(config.initial_learning_rate, name="learning_rate")
 

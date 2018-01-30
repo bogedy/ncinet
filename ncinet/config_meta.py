@@ -4,7 +4,7 @@ Classes to hold configurations for different parts of the model
 
 import tensorflow as tf
 
-from typing import Any, Iterable, Mapping, Callable, Tuple
+from typing import Any, Iterator, Mapping, Callable, Tuple
 
 
 def freeze(cls):
@@ -74,8 +74,14 @@ class InfConfig(ModelConfig):
 
 
 class SessionConfig:
-    logits_network_gen = None       # type: Callable[[tf.Graph, ModelConfig], tf.Tensor]
+    def logits_network_gen(self, graph, config):
+        # type: (tf.Graph, ModelConfig) -> Tuple[tf.Tensor, tf.Tensor]
+        raise NotImplemented
+
+    def batch_gen(self):
+        # type: () -> Iterator[Tuple[tf.Tensor, tf.Tensor]]
+        raise NotImplemented
+
     batch_gen_args = {}             # type: Mapping[str, Any]
     xent_type = ''                  # type: str
-    batch_gen = None                # type: Iterable[Tuple[tf.Tensor, tf.Tensor]]
     model_config = None             # type: ModelConfig

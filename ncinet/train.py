@@ -108,7 +108,7 @@ def train(config):
         train_op = ncinet.model_train.train(loss, global_step)
 
         # Generate batches of inputs and labels
-        batch_gen = config.batch_gen
+        batch_gen = config.batch_gen()
 
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)

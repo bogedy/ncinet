@@ -8,6 +8,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from .layers import conv_layer, fc_layer, NciKeys
+from .config_meta import EncoderConfig, InfConfig
 
 
 def _activation_summary(x):
@@ -24,45 +25,37 @@ def _activation_summary(x):
                       tf.nn.zero_fraction(x))
 
 
-def bottom_convnet(prints, training=True):
+def ae_encoder(prints, config, training=True):
+    # type: (tf.Tensor, EncoderConfig, bool) -> tf.Tensor
     """Encoder used in the autoencoder and inference networks."""
     collection = NciKeys.AE_ENCODER_VARIABLES
-    n_layers = 3
-    n_filter_par = [32, 32, 16]
-    k_size_par = [5, 5, 5]
-    wd_par = [0.001, 0.001, 0.001]
-
     pool = prints
 
-    for k in range(n_layers):
+    for k in range(config.n_layers):
         name = "conv{}".format(k)
-        k_size = (k_size_par[k], k_size_par[k])
-        conv = conv_layer(inputs=pool, filters=n_filter_par[k], kernel_size=k_size, trainable=training,
-                          collection=collection, batch_norm=(k == 0), wd=wd_par[k], name=name)
+        k_size = (config.filter_size[k],) * 2
+        conv = conv_layer(inputs=pool, filters=config.n_filters[k], kernel_size=k_size, trainable=training,
+                          collection=collection, batch_norm=(k == 0), wd=config.reg_weight[k], name=name)
         _activation_summary(conv)
         pool = tf.layers.max_pooling2d(conv, pool_size=(2, 2), strides=(2, 2), padding='same')
 
     return pool
 
 
-def top_convnet_autoenc(encoded):
+def ae_decoder(encoded, config):
+    # type: (tf.Tensor, EncoderConfig) -> tf.Tensor
     """Decoder used in the autoencoder."""
     collection = NciKeys.AE_DECODER_VARIABLES
-    n_layers = 3
-    n_filter_par = [16, 32, 32]
-    k_size_par = [5, 5, 5]
-    wd_par = [None, None, None]
-    i_start = 25
-
     conv = encoded
 
-    for k in range(n_layers):
+    for k in range(config.n_layers):
+        i = -(k+1)
         name = "convT{}".format(k)
-        k_size = (k_size_par[k], k_size_par[k])
-        i_size = (i_start*(k + 1), i_start*(k + 1))
+        k_size = (config.filter_size[i],)*2
+        i_size = (config.init_dim[i],)*2
 
         upsample = tf.image.resize_images(conv, size=i_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-        conv = conv_layer(inputs=upsample, filters=n_filter_par[k], kernel_size=k_size, wd=wd_par[k],
+        conv = conv_layer(inputs=upsample, filters=config.n_filters[i], kernel_size=k_size, wd=config.reg_weight[i],
                           collection=collection, name=name)
 
     # 100x100x1
@@ -72,52 +65,29 @@ def top_convnet_autoenc(encoded):
     return logits
 
 
-def autoencoder(prints, training=True):
+def autoencoder(prints, config, training=True):
     """Constructs the autoencoder network."""
     tf.summary.image("fingerprints", prints)
-    encoded = bottom_convnet(prints, training=training)
-    predict = top_convnet_autoenc(encoded)
+    encoded = ae_encoder(prints, config, training=training)
+    predict = ae_decoder(encoded, config)
     tf.summary.image("predicts", tf.nn.sigmoid(predict))
     return predict
 
 
-def topo_classify(prints, training=True):
-    """Constructs the inference network"""
+def inf_classify(prints, config, training=True):
+    # type: (tf.Tensor, InfConfig, bool) -> tf.Tensor
+    """Constructs a classifier inference network"""
     tf.summary.image("fingerprints", prints)
-    encoded = bottom_convnet(prints, training=False)
-
-    n_hidden = 1
-    dim_hidden = [256]
-
-    fc = encoded
-    for k in range(n_hidden):
-        name = "fc{}".format(k)
-        fc = fc_layer(fc, dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, trainable=training)
-        _activation_summary(fc)
-
-    logits = fc_layer(fc, 4, name="fc{}".format(n_hidden), activation=None,
-                      collection=NciKeys.INF_VARIABLES, trainable=training)
-    _activation_summary(logits)
-
-    return logits
-
-
-def sign_classify(prints, training=True):
-    """Construct a network to classify stability score > 0"""
-    tf.summary.image("fingerprints", prints)
-    encoded = bottom_convnet(prints, training=False)
+    encoded = ae_encoder(prints, config.encoder_config, training=False)
     _activation_summary(encoded)
 
-    n_hidden = 1
-    dim_hidden = [128]
-
     fc = encoded
-    for k in range(n_hidden):
+    for k in range(config.n_hidden):
         name = "fc{}".format(k)
-        fc = fc_layer(fc, dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, trainable=training)
+        fc = fc_layer(fc, config.dim_hidden[k], name=name, collection=NciKeys.INF_VARIABLES, trainable=training)
         _activation_summary(fc)
 
-    logits = fc_layer(fc, 2, name="fc{}".format(n_hidden), activation=None,
+    logits = fc_layer(fc, config.n_logits, name="logits", activation=None,
                       collection=NciKeys.INF_VARIABLES, trainable=training)
     _activation_summary(logits)
 

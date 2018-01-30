@@ -14,9 +14,8 @@ import ncinet.model_train
 
 from ncinet.model import NciKeys
 from . import WORK_DIR
-from . import training_config as config
-
-# TODO: streamline the differences between training different models
+from . import training_config
+from .config_meta import ModelConfig, SessionConfig
 
 
 class _LoggerHook(tf.train.SessionRunHook):
@@ -40,14 +39,14 @@ class _LoggerHook(tf.train.SessionRunHook):
 
     def after_run(self, run_context, run_values):
         if self._step > 0:
-            if self._step % config.log_frequency == 0:
+            if self._step % training_config.log_frequency == 0:
                 current_time = time.time()
                 duration = current_time - self._start_time
                 self._start_time = current_time
 
                 loss_value = run_values.results
-                examples_per_sec = config.log_frequency * config.batch_size / duration
-                sec_per_batch = float(duration / config.log_frequency)
+                examples_per_sec = training_config.log_frequency * training_config.batch_size / duration
+                sec_per_batch = float(duration / training_config.log_frequency)
 
                 format_str = ('{date}: step {step}, loss = {loss:.2} ({eps:.1} '
                               'examples/sec; {spb:.3} sec/batch)')
@@ -56,6 +55,7 @@ class _LoggerHook(tf.train.SessionRunHook):
 
 
 def _make_scaffold(graph):
+    # type: (tf.Graph) -> tf.train.Scaffold
     """Constructs a scaffold for training"""
     with graph.as_default():
         summary = tf.summary.merge_all()
@@ -76,7 +76,7 @@ def _make_scaffold(graph):
             def load_trained(_, sess):
                 """Load weights from a trained model"""
                 # restore vars
-                ckpt = tf.train.get_checkpoint_state(config.train_dir)
+                ckpt = tf.train.get_checkpoint_state(AE_TRAIN_DIR)
                 if ckpt and ckpt.model_checkpoint_path:
                     # Restores from checkpoint
                     with tf.variable_scope(tf.get_variable_scope()):
@@ -93,98 +93,51 @@ def _make_scaffold(graph):
         return scaffold
 
 
-# TODO: factor out graph construction (return "graph, input, output" from constructor)
-# TODO: model specific file that contains the necessary constructor functions?
-# TODO: remove topo param
-def train(topo=None):
+def train(config):
+    # type: (SessionConfig) -> None
     with tf.Graph().as_default() as g:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
-        # Fingerprint placeholders
-        prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
+        # Make graph for main network
+        logits, labels = config.logits_network_gen(g, config.model_config)
 
-        # Label placeholders
-        if TRAIN_AUTOENCODER:
-            labels_input = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="labels")
-            labels = labels_input
-        else:
-            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
-            if INF_TYPE == "topo":
-                labels = tf.one_hot(labels_input, 4, dtype=tf.float32)
-            elif INF_TYPE == "sign":
-                labels_index = tf.floordiv(tf.add(tf.cast(tf.sign(labels_input), tf.int32), 1), 2)
-                labels = tf.one_hot(labels_index, 2, dtype=tf.float32)
-            else:
-                raise ValueError
-
-        # apply the nn
-        if TRAIN_AUTOENCODER:
-            from ncinet.model import autoencoder
-            logits = autoencoder(prints)
-        else:
-            if INF_TYPE == "topo":
-                from ncinet.model import topo_classify
-                logits = topo_classify(prints)
-            elif INF_TYPE == "sign":
-                from ncinet.model import sign_classify
-                logits = sign_classify(prints)
-            else:
-                raise ValueError
-
-        # calculate loss
-        xent_type = 'sigmoid' if TRAIN_AUTOENCODER else 'softmax'
-        loss = ncinet.model_train.loss(logits, labels, xent_type=xent_type)
+        # Calculate loss
+        loss = ncinet.model_train.loss(logits, labels, xent_type=config.xent_type)
 
         # build training operation
         train_op = ncinet.model_train.train(loss, global_step)
 
-        # Set up framework to run model.
-        if TRAIN_AUTOENCODER:
-            in_args = {'eval_data': False, 'batch_size': config.batch_size, 'data_types': ['fingerprints']}
-        else:
-            label_name = "topologies" if INF_TYPE == "topo" else "scores"
-            in_args = {'eval_data': False, 'batch_size': config.batch_size, 'data_types': ['fingerprints', label_name]}
-
-        batch_gen = ncinet.ncinet_input.inputs(topo=topo, **in_args)
+        # Generate batches of inputs and labels
+        batch_gen = config.batch_gen
 
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)
 
-        def add_noise(x, factor):
-            noise = np.random.randn(*x.shape)
-            x = x + factor*noise
-            return np.clip(x, 0., 1.)
-
         # Run the training on the graph
         with tf.train.MonitoredTrainingSession(
             scaffold=scaffold,
-            checkpoint_dir=config.train_dir,
-            save_summaries_steps=config.summary_steps,
-            save_checkpoint_secs=config.checkpoint_secs,
-            hooks=[tf.train.StopAtStepHook(num_steps=config.max_steps),
+            checkpoint_dir=training_config.train_dir,
+            save_summaries_steps=training_config.summary_steps,
+            save_checkpoint_secs=training_config.checkpoint_secs,
+            hooks=[tf.train.StopAtStepHook(num_steps=training_config.max_steps),
                    tf.train.NanTensorHook(loss),
                    _LoggerHook(loss)]) as mon_sess:
 
             while not mon_sess.should_stop():
-                # Fetch labels and prints
-                if TRAIN_AUTOENCODER:
-                    print_batch = next(batch_gen)[0]
-                    label_batch = print_batch
-                    print_batch = add_noise(print_batch, 0.1)
-                else:
-                    print_batch, label_batch = next(batch_gen)
+                print_batch, label_batch = next(batch_gen)
 
                 # Run the graph once
                 print_batch = list(print_batch)
                 mon_sess.run([train_op, check],
-                             feed_dict={prints: print_batch,
-                                        labels_input: label_batch})
+                             feed_dict={'prints:0': print_batch,
+                                        'labels:0': label_batch})
 
 
 # TODO: remove these globals
 def main(options):
     global TRAIN_AUTOENCODER
     global INF_TYPE
+    global AE_TRAIN_DIR
 
     TRAIN_AUTOENCODER = (options.model == 'AE')
     INF_TYPE = options.model
@@ -192,11 +145,22 @@ def main(options):
     AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
     inf_train_dir = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
 
-    config.train_dir = AE_TRAIN_DIR if TRAIN_AUTOENCODER else inf_train_dir
+    training_config.train_dir = AE_TRAIN_DIR if TRAIN_AUTOENCODER else inf_train_dir
 
     # Delete any existing training files
-    if tf.gfile.Exists(config.train_dir):
-        tf.gfile.DeleteRecursively(config.train_dir)
-        tf.gfile.MakeDirs(config.train_dir)
+    if tf.gfile.Exists(training_config.train_dir):
+        tf.gfile.DeleteRecursively(training_config.train_dir)
+        tf.gfile.MakeDirs(training_config.train_dir)
 
-    train(topo=options.topo_restrict)
+    from .config_init import TopoSessionConfig, EncoderSessionConfig, SignSessionConfig
+
+    if options.model == 'AE':
+        config = EncoderSessionConfig()
+    elif options.model == 'topo':
+        config = TopoSessionConfig()
+    elif options.model == 'sign':
+        config = SignSessionConfig()
+    else:
+        raise ValueError
+
+    train(config)

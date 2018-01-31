@@ -6,30 +6,31 @@ import os
 import time
 from datetime import datetime
 
-import numpy as np
 import tensorflow as tf
-
-import ncinet.ncinet_input
 import ncinet.model_train
 
-from ncinet.model import NciKeys
+from .model import NciKeys
 from . import WORK_DIR
-from . import training_config
-from .config_meta import ModelConfig, SessionConfig
+from .config_meta import SessionConfig, TrainingConfig
 
 
 class _LoggerHook(tf.train.SessionRunHook):
     """Logs loss and runtime."""
-    def __init__(self, loss_op):
+    def __init__(self, loss_op, training_config):
+        # type: (tf.Tensor, TrainingConfig) -> None
         self._loss_op = loss_op
         self._step = -1
         self._start_time = time.time()
+        self._log_frequency = training_config.log_frequency
+        self._batch_size = training_config.batch_size
 
     def begin(self):
+        """Initialize records."""
         self._step = -1
         self._start_time = time.time()
 
     def before_run(self, run_context):
+        """Increment step and ask for loss"""
         self._step += 1
         if self._step == 0:
             run_args = None
@@ -38,15 +39,16 @@ class _LoggerHook(tf.train.SessionRunHook):
         return run_args
 
     def after_run(self, run_context, run_values):
+        """Log data to output after steps."""
         if self._step > 0:
-            if self._step % training_config.log_frequency == 0:
+            if self._step % self._log_frequency == 0:
                 current_time = time.time()
                 duration = current_time - self._start_time
                 self._start_time = current_time
 
                 loss_value = run_values.results
-                examples_per_sec = training_config.log_frequency * training_config.batch_size / duration
-                sec_per_batch = float(duration / training_config.log_frequency)
+                examples_per_sec = self._log_frequency * self._batch_size / duration
+                sec_per_batch = float(duration / self._log_frequency)
 
                 format_str = ('{date}: step {step}, loss = {loss:.2} ({eps:.1} '
                               'examples/sec; {spb:.3} sec/batch)')
@@ -105,11 +107,12 @@ def train(config):
         loss = ncinet.model_train.loss(logits, labels, xent_type=config.xent_type)
 
         # build training operation
-        train_op = ncinet.model_train.train(loss, global_step)
+        train_op = ncinet.model_train.train(loss, global_step, config.train_config)
 
         # Generate batches of inputs and labels
         batch_gen = config.batch_gen()
 
+        training_config = config.train_config
         check = tf.add_check_numerics_ops()
         scaffold = _make_scaffold(g)
 
@@ -121,7 +124,7 @@ def train(config):
             save_checkpoint_secs=training_config.checkpoint_secs,
             hooks=[tf.train.StopAtStepHook(num_steps=training_config.max_steps),
                    tf.train.NanTensorHook(loss),
-                   _LoggerHook(loss)]) as mon_sess:
+                   _LoggerHook(loss, config.train_config)]) as mon_sess:
 
             while not mon_sess.should_stop():
                 print_batch, label_batch = next(batch_gen)
@@ -145,6 +148,12 @@ def main(options):
     AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
     inf_train_dir = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
 
+    training_config = TrainingConfig(batch_size=32,
+                                     num_examples_per_epoch_train=14000,
+                                     max_steps=100000,
+                                     initial_learning_rate=0.005,
+                                     num_epochs_per_decay=50.0)
+
     training_config.train_dir = AE_TRAIN_DIR if TRAIN_AUTOENCODER else inf_train_dir
 
     # Delete any existing training files
@@ -155,11 +164,11 @@ def main(options):
     from .config_init import TopoSessionConfig, EncoderSessionConfig, SignSessionConfig
 
     if options.model == 'AE':
-        config = EncoderSessionConfig()
+        config = EncoderSessionConfig(train_config=training_config)
     elif options.model == 'topo':
-        config = TopoSessionConfig()
+        config = TopoSessionConfig(train_config=training_config)
     elif options.model == 'sign':
-        config = SignSessionConfig()
+        config = SignSessionConfig(train_config=training_config)
     else:
         raise ValueError
 

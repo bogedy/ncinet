@@ -1,3 +1,6 @@
+"""
+Implements the core neural networks.
+"""
 
 # code adapted from tutorials:
 # https://github.com/dandelionmane/tf-dev-summit-tensorboard-tutorial/blob/master/mnist.py
@@ -8,7 +11,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from .layers import conv_layer, fc_layer, NciKeys
-from .config_meta import EncoderConfig, InfConfig
+from .config_hyper import EncoderConfig, InfConfig
 
 
 def _activation_summary(x):

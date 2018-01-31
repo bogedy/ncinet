@@ -4,7 +4,7 @@ Constructs parts of the graph only used in training.
 
 import tensorflow as tf
 
-from . import training_config as config
+from .config_meta import TrainingConfig
 
 # Constants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
@@ -67,7 +67,8 @@ def _add_loss_summaries(total_loss):
     return loss_averages_op
 
 
-def train(total_loss, global_step):
+def train(total_loss, global_step, config):
+    # type: (tf.Tensor, tf.Tensor, TrainingConfig) -> tf.Tensor
     """Train the model.
     Create an optimizer and apply to all trainable variables. Add moving
     average for all trainable variables.
@@ -75,6 +76,7 @@ def train(total_loss, global_step):
         total_loss: Total loss from loss().
         global_step: Integer Variable counting the number of training steps
           processed.
+        config: structure containing training hyperparameters
     Returns:
         train_op: op for training.
     """

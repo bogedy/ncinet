@@ -1,21 +1,23 @@
 """
-Collection of functions which set up graphs
+Model specific constructor functions.
 """
 
 import tensorflow as tf
 
-from .config_meta import EncoderConfig, InfConfig, SessionConfig
+from .config_meta import SessionConfig
+from .config_hyper import EncoderConfig, InfConfig
 from .ncinet_input import inputs
 
 from typing import Tuple
 
-batch_size = 32
-
 
 class EncoderSessionConfig(SessionConfig):
-    batch_gen_args = {'eval_data': False, 'batch_size': batch_size, 'data_types': ['fingerprints']}
     xent_type = 'sigmoid'
     model_config = EncoderConfig()
+
+    @property
+    def batch_gen_args(self):
+        return {'eval_data': False, 'batch_size': self.train_config.batch_size, 'data_types': ['fingerprints']}
 
     def logits_network_gen(self, graph, config):
         # type: (tf.Graph, EncoderConfig) -> Tuple[tf.Tensor, tf.Tensor]
@@ -37,7 +39,7 @@ class EncoderSessionConfig(SessionConfig):
             x = x + factor * noise
             return np.clip(x, 0., 1.)
 
-        batch_gen = inputs(**EncoderSessionConfig.batch_gen_args)
+        batch_gen = inputs(**self.batch_gen_args)
 
         def wrapped_gen():
             while True:
@@ -51,13 +53,15 @@ class EncoderSessionConfig(SessionConfig):
 
 class InfSessionConfig(SessionConfig):
     xent_type = 'softmax'
-    inf_type = ''
+    inf_type = None             # type: str
 
     def logits_network_gen(self, graph, config):
         # type: (tf.Graph, InfConfig) -> Tuple[tf.Tensor, tf.Tensor]
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
+
+            # Placeholders and preprocessing for labels.
             labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
             if self.inf_type == "topo":
                 labels = tf.one_hot(labels_input, 4, dtype=tf.float32)
@@ -79,11 +83,19 @@ class InfSessionConfig(SessionConfig):
 
 class TopoSessionConfig(InfSessionConfig):
     inf_type = 'topo'
-    batch_gen_args = {'eval_data': False, 'batch_size': batch_size, 'data_types': ['fingerprints', 'topologies']}
     model_config = InfConfig()
+
+    @property
+    def batch_gen_args(self):
+        return {'eval_data': False, 'batch_size': self.train_config.batch_size,
+                'data_types': ['fingerprints', 'topologies']}
 
 
 class SignSessionConfig(InfSessionConfig):
     inf_type = 'sign'
-    batch_gen_args = {'eval_data': False, 'batch_size': batch_size, 'data_types': ['fingerprints', 'scores']}
     model_config = InfConfig(n_logits=2)
+
+    @property
+    def batch_gen_args(self):
+        return {'eval_data': False, 'batch_size': self.train_config.batch_size,
+                'data_types': ['fingerprints', 'scores']}

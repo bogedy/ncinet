@@ -1,8 +1,8 @@
 """
-foo
+Module to build and train neural networks to predict protein properties.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 import os
 

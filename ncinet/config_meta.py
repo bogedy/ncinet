@@ -7,7 +7,7 @@ from __future__ import division, print_function
 import tensorflow as tf
 import numpy as np
 
-from typing import Any, Iterator, Mapping, Tuple
+from typing import Any, Iterator, Mapping, Tuple, List
 
 
 def freeze(cls):
@@ -78,12 +78,57 @@ class TrainingConfig(ConfigBase):
     learning_rate_decay_factor = (1/np.e)
 
 
+class EvalConfig(ConfigBase):
+    """Parameters for evaluation"""
+    batch_size = None                       # type: int
+    eval_dir = None                         # type: str
+    train_dir = None                        # type: str
+    data_writer = None                      # type: EvalWriterBase
+
+    use_eval_data = True
+    run_once = None                         # type: bool
+    eval_interval = 120
+
+
+@freeze
+class EvalWriterBase:
+    """Writes eval data to file."""
+    def __init__(self):
+        pass
+
+    def setup(self, sess):
+        # type: (tf.Session) -> None
+        """Initialize the writer"""
+        pass
+
+    @property
+    def data_ops(self):
+        # type: () -> List[tf.Tensor, ...]
+        """Records ops for each batch during evaluation"""
+        return []
+
+    @data_ops.setter
+    def data_ops(self, ops):
+        # type: (Tuple[np.ndarray]) -> None
+        pass
+
+    def collect_batch(self, batch):
+        # type: (Tuple[Any, ...]) -> None
+        """Collect the data used for evaluation"""
+        pass
+
+    def save(self):
+        """Write stored data out to file"""
+        pass
+
+
 @freeze
 class SessionConfig(ConfigBase):
     """Main container for all model configurations."""
     xent_type = None                        # type: str
     model_config = None                     # type: ModelConfig
     train_config = None                     # type: TrainingConfig
+    eval_config = None                      # type: EvalConfig
 
     @property
     def batch_gen_args(self):
@@ -91,9 +136,14 @@ class SessionConfig(ConfigBase):
         """Dict of arguments to pass to `nci_input.inputs`"""
         raise NotImplemented
 
-    def logits_network_gen(self, graph, config):
-        # type: (tf.Graph, ModelConfig) -> Tuple[tf.Tensor, tf.Tensor]
+    def logits_network_gen(self, graph, config, eval_net=False):
+        # type: (tf.Graph, ModelConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
         """Constructs main network. Returns logits, labels tensors"""
+        raise NotImplemented
+
+    def eval_metric(self, logits, labels):
+        # type: (tf.Tensor, tf.Tensor) -> tf.Tensor
+        """Metric to record during testing"""
         raise NotImplemented
 
     def batch_gen(self):

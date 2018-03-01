@@ -60,7 +60,7 @@ def _make_scaffold(graph, config, autoencoder=True):
 
 
 def eval_once(scaffold, eval_op, config):
-    # type: (Mapping[str, Any], tf.Tensor, EvalConfig) -> None
+    # type: (Mapping[str, Any], tf.Tensor, EvalConfig) -> Mapping[str, float]
     """Run an operation once on the eval data.
     Args:
         scaffold: dict which approximates a tf.train.Scaffold
@@ -115,24 +115,31 @@ def eval_once(scaffold, eval_op, config):
         # summary steps
         summary = tf.Summary()
 
+        results = {}
         if EVAL_AUTOENCODER:
             avg_error = eval_acc / total_sample_count
             print("{}: average per-pixel error {:.3f}".format(datetime.now(), avg_error))
-            summary.value.add(tag='error', simple_value=avg_error)
+            results['error'] = avg_error
         else:
             # Compute precision @ 1.
             precision = eval_acc / total_sample_count
             print('%s: precision @ 1 = %.3f' % (datetime.now(), precision))
-            summary.value.add(tag='precision', simple_value=precision)
+            results['precision'] = precision
+
+        # add results to the summary
+        for tag, value in results:
+            summary.value.add(tag=tag, simple_value=value)
 
         scaffold['summary_writer'].add_summary(summary, global_step)
 
         # save the recorded data
         data_writer.save()
 
+        return results
+
 
 def evaluate(config):
-    # type: (SessionConfig) -> None
+    # type: (SessionConfig) -> Mapping[str, float]
     """Eval model for a number of steps."""
     with tf.Graph().as_default() as g:
         # Construct computation graph
@@ -145,9 +152,9 @@ def evaluate(config):
         scaffold = _make_scaffold(g, config.eval_config, EVAL_AUTOENCODER)
 
         while True:
-            eval_once(scaffold, eval_op, config.eval_config)
+            eval_result = eval_once(scaffold, eval_op, config.eval_config)
             if config.eval_config.run_once:
-                break
+                return eval_result
             time.sleep(config.eval_config.eval_interval)
 
 

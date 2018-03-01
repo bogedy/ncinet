@@ -5,7 +5,7 @@ Ingest data and store it in numpy arrays.
 import os
 import numpy as np
 
-from . import data_config as config
+from .config_meta import DataIngestConfig
 
 
 def get_fingerprint_filenames(directory):
@@ -120,7 +120,8 @@ def load_fingerprint(f_name, n=100):
 
 # reloads data from CSV and integration files
 # saves to a numpy archive
-def load_data_from_raws():
+def load_data_from_raws(config):
+    # type: (DataIngestConfig) -> None
     """Load data from sources and save in archive"""
     import shutil
     import errno

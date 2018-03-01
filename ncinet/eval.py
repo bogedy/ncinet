@@ -16,8 +16,8 @@ import ncinet.model
 import ncinet.ncinet_input
 
 from .model import NciKeys
-from . import WORK_DIR
-from .config_meta import SessionConfig, EvalConfig, EvalWriterBase
+from . import WORK_DIR, FINGERPRINT_DIR
+from .config_meta import SessionConfig, EvalConfig, EvalWriterBase, DataIngestConfig, DataRequest
 from .config_init import EncoderSessionConfig, TopoSessionConfig, SignSessionConfig, EvalWriter
 
 
@@ -59,14 +59,15 @@ def _make_scaffold(graph, config, autoencoder=True):
         return scaffold
 
 
-def eval_once(scaffold, eval_op, config):
-    # type: (Mapping[str, Any], tf.Tensor, EvalConfig) -> Mapping[str, float]
+def eval_once(scaffold, eval_op, sess_config):
+    # type: (Mapping[str, Any], tf.Tensor, SessionConfig) -> Mapping[str, float]
     """Run an operation once on the eval data.
     Args:
         scaffold: dict which approximates a tf.train.Scaffold
         eval_op: op to run on eval data.
-        config: initialized EvalConfig
+        sess_config: initialized SessionConfig
     """
+    config = sess_config.eval_config
     with tf.Session() as sess:
         # initialize the session.
         global_step = scaffold['init_fn'](scaffold, sess)
@@ -78,9 +79,9 @@ def eval_once(scaffold, eval_op, config):
             raise RuntimeError
 
         # runtime parameters
-        batch_gen = ncinet.ncinet_input.inputs(config.use_eval_data, config.batch_size,
-                                               data_types=['names', 'fingerprints', 'topologies'],
-                                               repeat=False)
+        batch_gen = ncinet.ncinet_input.inputs(eval_data=config.use_eval_data, batch_size=config.batch_size,
+                                               request=sess_config.request, ingest_config=sess_config.ingest_config,
+                                               data_types=('names', 'fingerprints', 'topologies'), repeat=False)
 
         total_sample_count = len(batch_gen)
         num_iter = int(math.ceil(total_sample_count / config.batch_size))
@@ -127,7 +128,7 @@ def eval_once(scaffold, eval_op, config):
             results['precision'] = precision
 
         # add results to the summary
-        for tag, value in results:
+        for tag, value in results.items():
             summary.value.add(tag=tag, simple_value=value)
 
         scaffold['summary_writer'].add_summary(summary, global_step)
@@ -152,7 +153,7 @@ def evaluate(config):
         scaffold = _make_scaffold(g, config.eval_config, EVAL_AUTOENCODER)
 
         while True:
-            eval_result = eval_once(scaffold, eval_op, config.eval_config)
+            eval_result = eval_once(scaffold, eval_op, config)
             if config.eval_config.run_once:
                 return eval_result
             time.sleep(config.eval_config.eval_interval)
@@ -187,12 +188,19 @@ def main(options):
                              run_once=run_once,
                              data_writer=data_writer)
 
+    ingest_config = DataIngestConfig(archive_dir = WORK_DIR,
+                                     fingerprint_dir = FINGERPRINT_DIR,
+                                     score_path = os.path.join(WORK_DIR, "../output.csv"),
+                                     archive_prefix = "data")
+
+    request = DataRequest()
+
     if options.model == 'AE':
-        config = EncoderSessionConfig(eval_config=eval_config)
+        config = EncoderSessionConfig(eval_config=eval_config, ingest_config=ingest_config, request=request)
     elif options.model == 'topo':
-        config = TopoSessionConfig(eval_config=eval_config)
+        config = TopoSessionConfig(eval_config=eval_config, ingest_config=ingest_config, request=request)
     elif options.model == 'sign':
-        config = SignSessionConfig(eval_config=eval_config)
+        config = SignSessionConfig(eval_config=eval_config, ingest_config=ingest_config, request=request)
     else:
         raise ValueError
 

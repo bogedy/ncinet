@@ -10,7 +10,7 @@ import tensorflow as tf
 import ncinet.model_train
 
 from .model import NciKeys
-from . import WORK_DIR
+from . import WORK_DIR, FINGERPRINT_DIR
 from .config_meta import SessionConfig, TrainingConfig
 
 
@@ -162,13 +162,21 @@ def main(options):
         tf.gfile.MakeDirs(training_config.train_dir)
 
     from .config_init import TopoSessionConfig, EncoderSessionConfig, SignSessionConfig
+    from .config_meta import DataRequest, DataIngestConfig
+
+    ingest_config = DataIngestConfig(archive_dir=WORK_DIR,
+                                     fingerprint_dir=FINGERPRINT_DIR,
+                                     score_path=os.path.join(WORK_DIR, "../output.csv"),
+                                     archive_prefix="data")
+
+    request = DataRequest(n_folds=3, fold=1, stratify=True)
 
     if options.model == 'AE':
-        config = EncoderSessionConfig(train_config=training_config)
+        config = EncoderSessionConfig(train_config=training_config, ingest_config=ingest_config, request=request)
     elif options.model == 'topo':
-        config = TopoSessionConfig(train_config=training_config)
+        config = TopoSessionConfig(train_config=training_config, ingest_config=ingest_config, request=request)
     elif options.model == 'sign':
-        config = SignSessionConfig(train_config=training_config)
+        config = SignSessionConfig(train_config=training_config, ingest_config=ingest_config, request=request)
     else:
         raise ValueError
 

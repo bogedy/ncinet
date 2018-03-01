@@ -59,6 +59,30 @@ class ModelConfig(ConfigBase):
 
 
 @freeze
+class DataIngestConfig(ConfigBase):
+    """Parameters for data ingest and processing"""
+    # Data for constructing archive paths
+    full_archive_name = "data_full.npz"
+    archive_dir = None                      # type: str
+    fingerprint_dir = None                  # type: str
+    score_path = None                       # type: str
+
+    # parameters for programmatically constructing archive names
+    archive_prefix = None
+    tt_tags = ("train", "eval")
+    xv_tags = ("xvTrain", "xvVal")
+
+
+@freeze
+class DataRequest(ConfigBase):
+    """Parameters needed to construct a batch generator"""
+    fold = None                             # type: int
+    n_folds = None                          # type: int
+    stratify = False                        # type: bool
+    topo_restrict = None                    # type: int
+
+
+@freeze
 class TrainingConfig(ConfigBase):
     """Configuration for training scheme."""
     batch_size = None                       # type: int
@@ -78,6 +102,7 @@ class TrainingConfig(ConfigBase):
     learning_rate_decay_factor = (1/np.e)
 
 
+@freeze
 class EvalConfig(ConfigBase):
     """Parameters for evaluation"""
     batch_size = None                       # type: int
@@ -129,12 +154,8 @@ class SessionConfig(ConfigBase):
     model_config = None                     # type: ModelConfig
     train_config = None                     # type: TrainingConfig
     eval_config = None                      # type: EvalConfig
-
-    @property
-    def batch_gen_args(self):
-        # type: () -> Mapping[str, Any]
-        """Dict of arguments to pass to `nci_input.inputs`"""
-        raise NotImplemented
+    ingest_config = None                    # type: DataIngestConfig
+    request = None                          # type: DataRequest
 
     def logits_network_gen(self, graph, config, eval_net=False):
         # type: (tf.Graph, ModelConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]

@@ -16,10 +16,6 @@ class EncoderSessionConfig(SessionConfig):
     xent_type = 'sigmoid'
     model_config = EncoderConfig()
 
-    @property
-    def batch_gen_args(self):
-        return {'eval_data': False, 'batch_size': self.train_config.batch_size, 'data_types': ['fingerprints']}
-
     def logits_network_gen(self, graph, config, eval_net=False):
         # type: (tf.Graph, EncoderConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
         with graph.as_default():
@@ -47,7 +43,9 @@ class EncoderSessionConfig(SessionConfig):
             x = x + factor * noise
             return np.clip(x, 0., 1.)
 
-        batch_gen = inputs(**self.batch_gen_args)
+        batch_gen = inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                           request=self.request, ingest_config=self.ingest_config,
+                           data_types=('fingerprints',))
 
         def wrapped_gen():
             while True:
@@ -99,9 +97,6 @@ class InfSessionConfig(SessionConfig):
         top_k = tf.nn.in_top_k(logits, labels, 1)
         # eval_op = tf.count_nonzero(top_k)
         return top_k
-
-    def batch_gen(self):
-        return inputs(**self.batch_gen_args)
 
 
 class EvalWriter(EvalWriterBase):
@@ -180,17 +175,17 @@ class TopoSessionConfig(InfSessionConfig):
     inf_type = 'topo'
     model_config = InfConfig()
 
-    @property
-    def batch_gen_args(self):
-        return {'eval_data': False, 'batch_size': self.train_config.batch_size,
-                'data_types': ['fingerprints', 'topologies']}
+    def batch_gen(self):
+        return inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                      request=self.request, ingest_config=self.ingest_config,
+                      data_types=('fingerprints', 'topologies'))
 
 
 class SignSessionConfig(InfSessionConfig):
     inf_type = 'sign'
     model_config = InfConfig(n_logits=2)
 
-    @property
-    def batch_gen_args(self):
-        return {'eval_data': False, 'batch_size': self.train_config.batch_size,
-                'data_types': ['fingerprints', 'scores']}
+    def batch_gen(self):
+        return inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                      request=self.request, ingest_config=self.ingest_config,
+                      data_types=('fingerprints', 'scores'))

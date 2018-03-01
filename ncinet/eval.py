@@ -21,13 +21,6 @@ from .config_meta import SessionConfig, EvalConfig, EvalWriterBase
 from .config_init import EncoderSessionConfig, TopoSessionConfig, SignSessionConfig, EvalWriter
 
 
-USE_EVAL_DATA = True
-
-RUN_ONCE = False
-WRITE_DATA = False
-EVAL_INTERVAL = 120
-
-
 def _make_scaffold(graph, config, autoencoder=True):
     # type: (tf.Graph, EvalConfig, bool) -> Mapping[str, Any]
     """Construct a 'scaffold' for the given model"""

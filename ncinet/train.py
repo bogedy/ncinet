@@ -1,8 +1,10 @@
+"""
+Logic to construct and train a model.
+"""
 
 from __future__ import division
 from __future__ import print_function
 
-import os
 import time
 from datetime import datetime
 
@@ -96,6 +98,7 @@ def _make_scaffold(graph, config, autoencoder=True):
 
 def train(config):
     # type: (SessionConfig) -> None
+    """Constructs model and runs a MonitoredTrainingSession"""
     with tf.Graph().as_default() as g:
         global_step = tf.contrib.framework.get_or_create_global_step()
 
@@ -136,6 +139,7 @@ def train(config):
 
 
 def main(config):
+    """Deletes existing training directory and runs training"""
     # Delete any existing training files
     if tf.gfile.Exists(config.train_config.train_dir):
         tf.gfile.DeleteRecursively(config.train_config.train_dir)

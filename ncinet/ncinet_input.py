@@ -12,7 +12,7 @@ import os
 
 import numpy as np
 
-from typing import Mapping, Tuple, Sized, Iterable
+from typing import Mapping, MutableSequence, List, Tuple, Sized, Iterable
 
 from .data_ingest import load_data_from_raws
 from .config_meta import DataIngestConfig, DataRequest
@@ -217,7 +217,7 @@ def load_data(eval_data, request, ingest_config, new_split=False, reload_data=Fa
         split_train_eval(ingest_config, topo=request.topo_restrict)
     if new_xv_split and (request.fold is not None):
         base_archive = tt_names[0] if not eval_data else tt_names[1]
-        split_xval(os.path.join(ingest_config.archive_dir, base_archive),ingest_config,
+        split_xval(os.path.join(ingest_config.archive_dir, base_archive), ingest_config,
                    folds=request.n_folds, fraction=(1 / request.n_folds), stratify=request.stratify)
 
     # Load data from selected archive
@@ -233,11 +233,12 @@ def load_data(eval_data, request, ingest_config, new_split=False, reload_data=Fa
 
 
 def inf_datagen(arrays, batch, repeat=True):
+    # type: (MutableSequence[np.ndarray], int, bool) -> Iterable[List[np.ndarray]]
     """Creates a generator to supply training/eval data
 
     Parameters
     ----------
-    arrays: List[NDArray]
+    arrays: Sequence[NDArray]
         All must be the same length
     batch: Int
         Size of arrays in generated list.

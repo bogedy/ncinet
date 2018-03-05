@@ -21,13 +21,15 @@ class EncoderConfig(ModelConfig):
     init_dim: List[int]
         Dimension of the side of the layer farthest from the latent space.
     """
-    def __init__(self):
+    is_autoencoder = True
+
+    def __init__(self, **kwargs):
         self.n_layers = 3
         self.n_filters = [32, 32, 16]
         self.filter_size = [5, 5, 5]
         self.reg_weight = [0.001, 0.001, 0.001]
         self.init_dim = [100, 50, 25]
-        ModelConfig.__init__(self)
+        ModelConfig.__init__(self, **kwargs)
 
 
 class InfConfig(ModelConfig):
@@ -40,6 +42,8 @@ class InfConfig(ModelConfig):
     n_logits: int
     encoder_config: EncoderConfig
     """
+    is_autoencoder = False
+
     def __init__(self, **kwargs):
         self.n_hidden = 1
         self.dim_hidden = [128]

@@ -12,13 +12,10 @@ import numpy as np
 import tensorflow as tf
 from typing import Any, Mapping
 
-import ncinet.model
 import ncinet.ncinet_input
 
 from .model import NciKeys
-from . import WORK_DIR, FINGERPRINT_DIR
-from .config_meta import SessionConfig, EvalConfig, EvalWriterBase, DataIngestConfig, DataRequest
-from .config_init import EncoderSessionConfig, TopoSessionConfig, SignSessionConfig, EvalWriter
+from .config_meta import SessionConfig, EvalConfig
 
 
 def _make_scaffold(graph, config, autoencoder=True):
@@ -44,11 +41,13 @@ def _make_scaffold(graph, config, autoencoder=True):
             return global_step
 
         if autoencoder:
-            saver = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
-                                   + tf.get_collection(NciKeys.AE_DECODER_VARIABLES))
+            model_ops = tf.get_collection(NciKeys.AE_ENCODER_VARIABLES) \
+                        + tf.get_collection(NciKeys.AE_DECODER_VARIABLES)
         else:
-            saver = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
-                                   + tf.get_collection(NciKeys.INF_VARIABLES))
+            model_ops = tf.get_collection(NciKeys.AE_ENCODER_VARIABLES) \
+                        + tf.get_collection(NciKeys.INF_VARIABLES)
+
+        saver = tf.train.Saver(model_ops)
 
         scaffold = dict(init_fn=lambda scaffold, sess: load_trained(scaffold['saver'], sess),
                         ready_op=tf.report_uninitialized_variables(),
@@ -98,7 +97,7 @@ def eval_once(scaffold, eval_op, sess_config):
             name_batch, print_batch, topo_batch = next(batch_gen)
             print_batch = list(print_batch)
 
-            if EVAL_AUTOENCODER:
+            if sess_config.model_config.is_autoencoder:
                 label_batch = print_batch
             else:
                 label_batch = topo_batch
@@ -117,7 +116,7 @@ def eval_once(scaffold, eval_op, sess_config):
         summary = tf.Summary()
 
         results = {}
-        if EVAL_AUTOENCODER:
+        if sess_config.model_config.is_autoencoder:
             avg_error = eval_acc / total_sample_count
             print("{}: average per-pixel error {:.3f}".format(datetime.now(), avg_error))
             results['error'] = avg_error
@@ -150,7 +149,7 @@ def evaluate(config):
         eval_op = config.eval_metric(logits, labels)
 
         # Construct helpers to run model.
-        scaffold = _make_scaffold(g, config.eval_config, EVAL_AUTOENCODER)
+        scaffold = _make_scaffold(g, config.eval_config, config.model_config.is_autoencoder)
 
         while True:
             eval_result = eval_once(scaffold, eval_op, config)
@@ -159,53 +158,9 @@ def evaluate(config):
             time.sleep(config.eval_config.eval_interval)
 
 
-# TODO: remove globals
-def main(options):
-    global EVAL_AUTOENCODER
-    EVAL_AUTOENCODER = (options.model == 'AE')
-
-    inf_type = options.model
-
-    eval_dir = os.path.join(WORK_DIR, "eval_ae" if EVAL_AUTOENCODER else "eval_inf_" + inf_type)
-    auto_dir = os.path.join(WORK_DIR, "train_ae")
-    inf_dir = os.path.join(WORK_DIR, "train_inf_" + inf_type)
-    train_dir = auto_dir if EVAL_AUTOENCODER else inf_dir
-
-    run_once = True
-
-    if not run_once:
-        data_writer = EvalWriterBase()
-    else:
-        op_name = ("max_pooling2d_3/MaxPool:0",)
-        file_name = "{}_results_{}".format('eval', 'ae' if EVAL_AUTOENCODER else 'inf')
-        data_writer = EvalWriter(archive_name=file_name,
-                                 archive_dir=WORK_DIR,
-                                 saved_vars=op_name)
-
-    eval_config = EvalConfig(batch_size=100,
-                             eval_dir=eval_dir,
-                             train_dir=train_dir,
-                             run_once=run_once,
-                             data_writer=data_writer)
-
-    ingest_config = DataIngestConfig(archive_dir = WORK_DIR,
-                                     fingerprint_dir = FINGERPRINT_DIR,
-                                     score_path = os.path.join(WORK_DIR, "../output.csv"),
-                                     archive_prefix = "data")
-
-    request = DataRequest()
-
-    if options.model == 'AE':
-        config = EncoderSessionConfig(eval_config=eval_config, ingest_config=ingest_config, request=request)
-    elif options.model == 'topo':
-        config = TopoSessionConfig(eval_config=eval_config, ingest_config=ingest_config, request=request)
-    elif options.model == 'sign':
-        config = SignSessionConfig(eval_config=eval_config, ingest_config=ingest_config, request=request)
-    else:
-        raise ValueError
-
-    if tf.gfile.Exists(eval_dir):
-        tf.gfile.DeleteRecursively(eval_dir)
-        tf.gfile.MakeDirs(eval_dir)
+def main(config):
+    if tf.gfile.Exists(config.eval_config.eval_dir):
+        tf.gfile.DeleteRecursively(config.eval_config.eval_dir)
+        tf.gfile.MakeDirs(config.eval_config.eval_dir)
 
     evaluate(config)

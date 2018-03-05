@@ -10,7 +10,6 @@ import tensorflow as tf
 import ncinet.model_train
 
 from .model import NciKeys
-from . import WORK_DIR, FINGERPRINT_DIR
 from .config_meta import SessionConfig, TrainingConfig
 
 
@@ -56,15 +55,15 @@ class _LoggerHook(tf.train.SessionRunHook):
                                         eps=examples_per_sec, spb=sec_per_batch))
 
 
-def _make_scaffold(graph):
-    # type: (tf.Graph) -> tf.train.Scaffold
+def _make_scaffold(graph, config, autoencoder=True):
+    # type: (tf.Graph, SessionConfig) -> tf.train.Scaffold
     """Constructs a scaffold for training"""
     with graph.as_default():
         summary = tf.summary.merge_all()
         init_op = tf.global_variables_initializer()
         ready_op = tf.report_uninitialized_variables()
 
-        if TRAIN_AUTOENCODER:
+        if autoencoder:
             saver_auto = tf.train.Saver(tf.get_collection(NciKeys.AE_ENCODER_VARIABLES)
                                         + tf.get_collection(NciKeys.AE_DECODER_VARIABLES))
             scaffold = tf.train.Scaffold(init_op=init_op, ready_op=ready_op,
@@ -78,7 +77,7 @@ def _make_scaffold(graph):
             def load_trained(_, sess):
                 """Load weights from a trained model"""
                 # restore vars
-                ckpt = tf.train.get_checkpoint_state(AE_TRAIN_DIR)
+                ckpt = tf.train.get_checkpoint_state(config.train_config.encoder_dir)
                 if ckpt and ckpt.model_checkpoint_path:
                     # Restores from checkpoint
                     with tf.variable_scope(tf.get_variable_scope()):
@@ -114,7 +113,7 @@ def train(config):
 
         training_config = config.train_config
         check = tf.add_check_numerics_ops()
-        scaffold = _make_scaffold(g)
+        scaffold = _make_scaffold(g, config, autoencoder=config.model_config.is_autoencoder)
 
         # Run the training on the graph
         with tf.train.MonitoredTrainingSession(
@@ -136,48 +135,10 @@ def train(config):
                                         'labels:0': label_batch})
 
 
-# TODO: remove these globals
-def main(options):
-    global TRAIN_AUTOENCODER
-    global INF_TYPE
-    global AE_TRAIN_DIR
-
-    TRAIN_AUTOENCODER = (options.model == 'AE')
-    INF_TYPE = options.model
-
-    AE_TRAIN_DIR = os.path.join(WORK_DIR, "train_ae")
-    inf_train_dir = os.path.join(WORK_DIR, "train_inf_" + INF_TYPE)
-
-    training_config = TrainingConfig(batch_size=32,
-                                     num_examples_per_epoch_train=14000,
-                                     max_steps=100000,
-                                     initial_learning_rate=0.005,
-                                     num_epochs_per_decay=50.0)
-
-    training_config.train_dir = AE_TRAIN_DIR if TRAIN_AUTOENCODER else inf_train_dir
-
+def main(config):
     # Delete any existing training files
-    if tf.gfile.Exists(training_config.train_dir):
-        tf.gfile.DeleteRecursively(training_config.train_dir)
-        tf.gfile.MakeDirs(training_config.train_dir)
-
-    from .config_init import TopoSessionConfig, EncoderSessionConfig, SignSessionConfig
-    from .config_meta import DataRequest, DataIngestConfig
-
-    ingest_config = DataIngestConfig(archive_dir=WORK_DIR,
-                                     fingerprint_dir=FINGERPRINT_DIR,
-                                     score_path=os.path.join(WORK_DIR, "../output.csv"),
-                                     archive_prefix="data")
-
-    request = DataRequest(n_folds=3, fold=1, stratify=True)
-
-    if options.model == 'AE':
-        config = EncoderSessionConfig(train_config=training_config, ingest_config=ingest_config, request=request)
-    elif options.model == 'topo':
-        config = TopoSessionConfig(train_config=training_config, ingest_config=ingest_config, request=request)
-    elif options.model == 'sign':
-        config = SignSessionConfig(train_config=training_config, ingest_config=ingest_config, request=request)
-    else:
-        raise ValueError
+    if tf.gfile.Exists(config.train_config.train_dir):
+        tf.gfile.DeleteRecursively(config.train_config.train_dir)
+        tf.gfile.MakeDirs(config.train_config.train_dir)
 
     train(config)

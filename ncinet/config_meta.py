@@ -7,7 +7,7 @@ from __future__ import division, print_function
 import tensorflow as tf
 import numpy as np
 
-from typing import Any, Iterator, Mapping, Tuple, List
+from typing import Any, Iterator, Tuple, List
 
 
 def freeze(cls):
@@ -55,6 +55,7 @@ class ConfigBase(object):
 @freeze
 class ModelConfig(ConfigBase):
     """Configuration for network structure"""
+    is_autoencoder = None                   # type: bool
     pass
 
 
@@ -87,6 +88,7 @@ class TrainingConfig(ConfigBase):
     """Configuration for training scheme."""
     batch_size = None                       # type: int
     train_dir = None                        # type: str
+    encoder_dir = None                      # type: str
 
     # Training parameters
     max_steps = None                        # type: int

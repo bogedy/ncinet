@@ -63,9 +63,16 @@ def standard_config(options, base_name, run_once=True):
 def cli():
     options = parse_args()
 
-    if options.opt:
-        from .model_selection.parameter_opt import main
-        main()
+    if options.grid:
+        import yaml
+        from .model_selection.parameter_opt import grid_search
+        with open(options.grid, 'r') as conf_file:
+            params = yaml.safe_load(conf_file)
+
+        results = grid_search(**params)
+
+        with open(options.output, 'w') as out_file:
+            out_file.write(yaml.dump(results))
         return
 
     autoencoder = options.model == 'AE'

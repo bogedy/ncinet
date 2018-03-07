@@ -30,8 +30,11 @@ def parse_args():
                            help="Build inference model for predicting the sign of stability")
 
     # TODO: this doesn't play well with mutually exclusive train/eval
-    parser.add_argument('--opt', action='store_true', dest='opt',
+    parser.add_argument('--grid', action='store', dest='grid',
                         help="Run hyperparameter optimization")
+
+    parser.add_argument('--out_file', action='store', dest='output',
+                        help="file to write optimization")
 
     # specify work directory
     parser.add_argument('--work_dir', action='store', type=str,

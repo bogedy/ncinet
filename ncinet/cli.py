@@ -63,6 +63,11 @@ def standard_config(options, base_name, run_once=True):
 def cli():
     options = parse_args()
 
+    if options.opt:
+        from .model_selection.parameter_opt import main
+        main()
+        return
+
     autoencoder = options.model == 'AE'
     base_name = ("" if autoencoder else "inf_") + options.model.lower()
 

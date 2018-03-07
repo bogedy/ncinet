@@ -163,4 +163,4 @@ def main(config):
         tf.gfile.DeleteRecursively(config.eval_config.eval_dir)
         tf.gfile.MakeDirs(config.eval_config.eval_dir)
 
-    evaluate(config)
+    return evaluate(config)

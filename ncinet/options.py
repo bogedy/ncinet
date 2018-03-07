@@ -29,6 +29,10 @@ def parse_args():
     model_grp.add_argument('--sign', action='store_const', dest='model', const='sign',
                            help="Build inference model for predicting the sign of stability")
 
+    # TODO: this doesn't play well with mutually exclusive train/eval
+    parser.add_argument('--opt', action='store_true', dest='opt',
+                        help="Run hyperparameter optimization")
+
     # specify work directory
     parser.add_argument('--work_dir', action='store', type=str,
                         help="Directory to write model outputs")

@@ -94,6 +94,34 @@ def grid_search(fixed_params, var_params, n_folds=3):
     return results
 
 
+def random_search(fixed_params, var_params, n_iter, n_folds=3):
+    """Test `n_iter` random parameter choices"""
+
+    # Hold both parameter settings and xval results
+    results = []
+
+    # Cross validate a random parameter selection
+    for _ in range(n_iter):
+        # select a set of parameters
+        param_dict = {k: v.render() for k, v in var_params}
+        param_dict.update(fixed_params)
+        print("{}: Using {}".format(datetime.now(), str(param_dict)))
+
+        # Do evaluation
+        config = make_config(param_dict, ae_fstring)
+        stats, raw = xval_condition(config, n_folds)
+
+        # Print stats
+        for k, v in stats.items():
+            print("{}: {:.3} +/- {:.3}".format(k, v[0], v[1]))
+
+        # Save results
+        param_dict.update(raw)
+        results.append(param_dict)
+
+    return results
+
+
 def main():
     fixed_dict = dict(max_steps=2,
                       train_batch_size=64,

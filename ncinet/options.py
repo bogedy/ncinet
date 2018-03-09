@@ -33,6 +33,9 @@ def parse_args():
     parser.add_argument('--grid', action='store', dest='grid',
                         help="Run hyperparameter optimization")
 
+    parser.add_argument('--rand', action='store', dest='rand', nargs=2, metavar=('CONF', 'N_RUNS'),
+                        help="Optimize parameters through random selection")
+
     parser.add_argument('--out_file', action='store', dest='output',
                         help="file to write optimization")
 

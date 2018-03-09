@@ -75,6 +75,20 @@ def cli():
             out_file.write(yaml.dump(results))
         return
 
+    if options.rand:
+        import yaml
+        from .model_selection.parameter_opt import random_search
+
+        conf_path, n_iter = options.rand
+        with open(conf_path, 'r') as conf_file:
+            params = yaml.load(conf_file)
+
+        results = random_search(params['fixed_params'], params['var_params'], n_iter)
+
+        with open(options.output, 'w') as out_file:
+            out_file.write(yaml.dump(results))
+        return
+
     autoencoder = options.model == 'AE'
     base_name = ("" if autoencoder else "inf_") + options.model.lower()
 

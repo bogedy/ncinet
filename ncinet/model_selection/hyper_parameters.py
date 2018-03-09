@@ -7,7 +7,7 @@ import numpy as np
 
 
 class Parameter:
-    """Parameter placeholder"""
+    """Parameter placeholder for use in random search"""
     def __init__(self, dist=None, values=None):
         self._iter = None
         self.dist = dist
@@ -27,6 +27,23 @@ class Parameter:
 
     def __next__(self):
         return next(self.__iter__())
+
+    def __repr__(self):
+        return "{name}(dist={dist}, values={values})".format(
+            name=self.__class__.__name__, dist=repr(self.dist), values=self.values)
+
+
+class ParamTuple:
+    """Tuple of parameter objects"""
+    def __init__(self, base):
+        self.base = base
+
+    def render(self):
+        """Generate random parameter tuple."""
+        return tuple(map(lambda x: x.render(), self.base))
+
+    def __repr__(self):
+        return "{name}(base={base})".format(name=self.__class__.__name__, base=repr(self.base))
 
 
 def dict_product(param_dict):

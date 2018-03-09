@@ -103,7 +103,7 @@ def random_search(fixed_params, var_params, n_iter, n_folds=3):
     # Cross validate a random parameter selection
     for _ in range(n_iter):
         # select a set of parameters
-        param_dict = {k: v.render() for k, v in var_params}
+        param_dict = {k: v.render() for k, v in var_params.items()}
         param_dict.update(fixed_params)
         print("{}: Using {}".format(datetime.now(), str(param_dict)))
 

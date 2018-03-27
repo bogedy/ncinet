@@ -63,7 +63,7 @@ def standard_config(options, base_name, run_once=True):
 def cli():
     options = parse_args()
 
-    if options.grid:
+    if options.mode == 'grid':
         import yaml
         from .model_selection.parameter_opt import grid_search
         with open(options.grid, 'r') as conf_file:
@@ -75,7 +75,7 @@ def cli():
             out_file.write(yaml.dump(results))
         return
 
-    if options.rand:
+    elif options.mode == 'rand':
         import yaml
         from .model_selection.parameter_opt import random_search
 
@@ -89,17 +89,18 @@ def cli():
             out_file.write(yaml.dump(results))
         return
 
-    autoencoder = options.model == 'AE'
-    base_name = ("" if autoencoder else "inf_") + options.model.lower()
-
-    config = standard_config(options, base_name, run_once=True)
-
-    if not autoencoder:
-        config.train_config.encoder_dir = os.path.join(WORK_DIR, "train_ae")
-
-    if options.train:
-        from .train import main
-        main(config)
     else:
-        from .eval import main
-        main(config)
+        autoencoder = options.model == 'AE'
+        base_name = ("" if autoencoder else "inf_") + options.model.lower()
+
+        config = standard_config(options, base_name, run_once=True)
+
+        if not autoencoder:
+            config.train_config.encoder_dir = os.path.join(WORK_DIR, "train_ae")
+
+        if options.mode == 'train':
+            from .train import main
+            main(config)
+        else:
+            from .eval import main
+            main(config)

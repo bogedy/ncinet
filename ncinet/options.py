@@ -35,6 +35,9 @@ def parse_args():
     mode_grp.add_argument('--rand', action=ModeAction, nargs=2, metavar=('RAND_CONF', 'N_RUNS'),
                           help="Optimize parameters through random selection")
 
+    mode_grp.add_argument('--conf', action=ModeAction, metavar='CONFIG',
+                          help="Specify hyperparameters via a config file.")
+
     # which model to train
     model_grp_w = arg_parser.add_argument_group(title="Model type options")
     model_grp = model_grp_w.add_mutually_exclusive_group()

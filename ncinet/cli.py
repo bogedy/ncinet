@@ -63,7 +63,26 @@ def standard_config(options, base_name, run_once=True):
 def cli():
     options = parse_args()
 
-    if options.mode == 'grid':
+    if options.mode == 'conf':
+        import yaml
+        from ncinet.model_selection.parameter_opt import xval_condition
+        from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
+
+        # Load the config file
+        with open(options.conf, 'r') as conf_file:
+            conf_dict = yaml.safe_load(conf_file)
+
+        # Cross validate the conditions
+        config = make_config(conf_dict, ae_fstring)
+        _, result = xval_condition(config, 3)
+        result.update(conf_dict)
+
+        # Write out results
+        with open(options.output, 'w') as out_file:
+            yaml.dump(result, out_file)
+        return
+
+    elif options.mode == 'grid':
         import yaml
         from .model_selection.parameter_opt import grid_search
         with open(options.grid, 'r') as conf_file:

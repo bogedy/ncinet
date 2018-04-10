@@ -6,6 +6,18 @@ from argparse import ArgumentParser, Action
 from . import __version__
 
 
+def FlagAction(flag_key):
+    class ModeAction(Action):
+        """Setting multiple flags in options namespace"""
+        def __call__(self, parser, namespace, values, options_string=None):
+            # Set the mode selector
+            setattr(namespace, flag_key, self.dest)
+
+            # Set the mode specific args
+            setattr(namespace, self.dest, values)
+    return ModeAction
+
+
 def parse_args():
     """Parse ncinet args off of argv"""
     version = "%(prog)s {}".format(__version__)
@@ -19,24 +31,15 @@ def parse_args():
                           help="Train the model")
     mode_grp.add_argument('--eval', action='store_const', const='eval', dest='mode',
                           help="Evaluate the latest checkpoint")
+    mode_grp.add_argument('--xval', action='store_const', const='xval', dest='mode',
+                          help="Evaluate the latest checkpoint")
 
-    class ModeAction(Action):
-        """Setting multiple flags in options namespace"""
-        def __call__(self, parser, namespace, values, options_string=None):
-            # Set the mode selector
-            namespace.mode = self.dest
-
-            # Set the mode specific args
-            setattr(namespace, self.dest, values)
-
+    ModeAction = FlagAction('mode')
     mode_grp.add_argument('--grid', action=ModeAction,
                           metavar='GRID_CONF', help="Run grid search hyperparameter optimization")
 
     mode_grp.add_argument('--rand', action=ModeAction, nargs=2, metavar=('RAND_CONF', 'N_RUNS'),
                           help="Optimize parameters through random selection")
-
-    mode_grp.add_argument('--conf', action=ModeAction, metavar='CONFIG',
-                          help="Specify hyperparameters via a config file.")
 
     # which model to train
     model_grp_w = arg_parser.add_argument_group(title="Model type options")
@@ -47,6 +50,8 @@ def parse_args():
                            help="Build inference model for topology prediction")
     model_grp.add_argument('--sign', action='store_const', dest='model', const='sign',
                            help="Build inference model for predicting the sign of stability")
+    model_grp.add_argument('--conf', action=FlagAction('model'), metavar='CONFIG',
+                           help="Specify hyperparameters via a config file.")
 
     arg_parser.add_argument('--out_file', action='store', dest='output',
                             help="file to write optimization")

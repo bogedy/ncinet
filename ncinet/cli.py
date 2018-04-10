@@ -61,29 +61,15 @@ def standard_config(options, base_name, run_once=True):
 
 
 def cli():
+    import yaml
     options = parse_args()
 
-    if options.mode == 'conf':
-        import yaml
-        from ncinet.model_selection.parameter_opt import xval_condition
-        from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
+    # Reset work dir if specified
+    if options.work_dir:
+        global WORK_DIR
+        WORK_DIR = options.work_dir
 
-        # Load the config file
-        with open(options.conf, 'r') as conf_file:
-            conf_dict = yaml.safe_load(conf_file)
-
-        # Cross validate the conditions
-        config = make_config(conf_dict, ae_fstring)
-        _, result = xval_condition(config, 3)
-        result.update(conf_dict)
-
-        # Write out results
-        with open(options.output, 'w') as out_file:
-            yaml.dump(result, out_file)
-        return
-
-    elif options.mode == 'grid':
-        import yaml
+    if options.mode == 'grid':
         from .model_selection.parameter_opt import grid_search
         with open(options.grid, 'r') as conf_file:
             params = yaml.safe_load(conf_file)
@@ -92,10 +78,8 @@ def cli():
 
         with open(options.output, 'w') as out_file:
             out_file.write(yaml.dump(results))
-        return
 
     elif options.mode == 'rand':
-        import yaml
         from .model_selection.parameter_opt import random_search
 
         conf_path, n_iter = options.rand
@@ -106,20 +90,37 @@ def cli():
 
         with open(options.output, 'w') as out_file:
             out_file.write(yaml.dump(results))
-        return
 
     else:
-        autoencoder = options.model == 'AE'
-        base_name = ("" if autoencoder else "inf_") + options.model.lower()
+        # Make config
+        if options.model == 'conf':
+            from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
 
-        config = standard_config(options, base_name, run_once=True)
+            # Load the config file
+            with open(options.conf, 'r') as conf_file:
+                conf_dict = yaml.load(conf_file)
+            config = make_config(conf_dict, ae_fstring)
 
-        if not autoencoder:
-            config.train_config.encoder_dir = os.path.join(WORK_DIR, "train_ae")
+        else:
+            autoencoder = options.model == 'AE'
+            base_name = ("" if autoencoder else "inf_") + options.model.lower()
+
+            config = standard_config(options, base_name, run_once=True)
+
+            if not autoencoder:
+                config.train_config.encoder_dir = os.path.join(WORK_DIR, "train_ae")
 
         if options.mode == 'train':
             from .train import main
             main(config)
-        else:
+        elif options.mode == 'eval':
             from .eval import main
             main(config)
+        else:
+            # Cross validate the conditions
+            from ncinet.model_selection.parameter_opt import xval_condition
+            _, result = xval_condition(config, 3)
+
+            # Write out results
+            with open(options.output, 'w') as out_file:
+                yaml.dump(result, out_file)

@@ -102,6 +102,7 @@ class TrainingConfig(ConfigBase):
     initial_learning_rate = None            # type: float
     num_epochs_per_decay = None             # type: float
     learning_rate_decay_factor = (1/np.e)
+    input_noise = 0.05
 
 
 @freeze

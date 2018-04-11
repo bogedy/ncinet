@@ -51,7 +51,7 @@ class EncoderSessionConfig(SessionConfig):
             while True:
                 prints = next(batch_gen)[0]
                 labels = prints
-                prints = add_noise(prints, 0.1)
+                prints = add_noise(prints, self.train_config.input_noise)
                 yield prints, labels
 
         return wrapped_gen()

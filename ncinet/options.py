@@ -60,6 +60,9 @@ def parse_args():
     arg_parser.add_argument('--work_dir', action='store', type=str,
                             help="Directory to write model outputs")
 
+    arg_parser.add_argument('--basename', action='store', type=str,
+                            help="Part of naming of work directory.")
+
     arg_parser.add_argument('--t_rest', action='store', type=int, dest='topo_restrict', default=None,
                             help="Train model on topology T", metavar="TOPO")
 

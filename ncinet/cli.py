@@ -99,11 +99,15 @@ def cli():
             # Load the config file
             with open(options.conf, 'r') as conf_file:
                 conf_dict = yaml.load(conf_file)
-            config = make_config(conf_dict, ae_fstring)
+            if options.basename:
+                config = make_config(conf_dict, basename=options.basename)
+            else:
+                config = make_config(conf_dict, fstring=ae_fstring)
 
         else:
             autoencoder = options.model == 'AE'
             base_name = ("" if autoencoder else "inf_") + options.model.lower()
+            base_name = base_name if options.basename is None else options.basename
 
             config = standard_config(options, base_name, run_once=True)
 

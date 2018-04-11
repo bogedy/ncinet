@@ -12,6 +12,8 @@ import ncinet.train
 from ncinet.config_meta import SessionConfig, DataRequest
 from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
 
+from typing import Any, Mapping, Dict, Tuple, Union, TypeVar
+
 
 def add_dir_index(config, fold):
     # type: (SessionConfig, int) -> SessionConfig
@@ -67,6 +69,24 @@ def xval_condition(config, n_folds):
     return result_stats, raw_results
 
 
+# Types for join_dict
+Numeric_T = Union[int, float]
+ConfDict_T = TypeVar('ConfDict_T', Dict[str, Any])
+
+
+def join_dict(main_dict, aux_dict):
+    # type: (ConfDict_T, Mapping[Tuple[str], Numeric_T]) -> ConfDict_T
+    """update values in a multilevel dict, keys of aux dict are tuples"""
+    from copy import deepcopy
+    main_dict = deepcopy(main_dict)
+    for k_list, v in aux_dict.items():
+        to_update = main_dict
+        for k in k_list[:-1]:
+            to_update = to_update[k]
+        to_update[k_list[-1]] = v
+    return main_dict
+
+
 def grid_search(fixed_params, var_params, n_folds=3):
     """Exhaustively evaluate all combinations of parameters"""
     from .hyper_parameters import dict_product
@@ -76,7 +96,7 @@ def grid_search(fixed_params, var_params, n_folds=3):
 
     # Searches cartesian product of values in `var_params`
     for param_dict in dict_product(var_params):
-        param_dict.update(fixed_params)
+        param_dict = join_dict(fixed_params, param_dict)
         print("{}: Using {}".format(datetime.now(), str(param_dict)))
 
         # Cross validate parameter selection
@@ -103,8 +123,8 @@ def random_search(fixed_params, var_params, n_iter, n_folds=3):
     # Cross validate a random parameter selection
     for _ in range(n_iter):
         # select a set of parameters
-        param_dict = {k: v.render() for k, v in var_params.items()}
-        param_dict.update(fixed_params)
+        rendered = {k: v.render() for k, v in var_params.items()}
+        param_dict = join_dict(fixed_params, rendered)
         print("{}: Using {}".format(datetime.now(), str(param_dict)))
 
         # Do evaluation

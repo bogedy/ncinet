@@ -25,7 +25,7 @@ class EncoderSessionConfig(SessionConfig):
 
             # Calculate logits and loss
             from .model import autoencoder
-            logits = autoencoder(prints, config)
+            logits = autoencoder(prints, config, training=(not eval_net))
 
             return logits, labels
 
@@ -83,7 +83,7 @@ class InfSessionConfig(SessionConfig):
 
             # Calculate logits
             from .model import inf_classify
-            logits = inf_classify(prints, config)
+            logits = inf_classify(prints, config, training=(not eval_net))
 
             return logits, labels
 

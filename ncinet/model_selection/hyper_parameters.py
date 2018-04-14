@@ -105,9 +105,12 @@ def make_config(params, fstring=None, basename=None):
 
     # Set up eval writer
     use_writer = params['eval_config'].pop('use_writer', False)
-    writer_config = params['eval_config'].pop('writer_config', None)
+    writer_config = params['eval_config'].pop('writer_config', {})
     if use_writer:
-        writer = EvalWriter
+        archive_name = writer_config.pop('archive_name', '{}_eval_results'.format(basename))
+        archive_dir = writer_config.pop('archive_dir', WORK_DIR)
+        saved_vars = writer_config.pop('saved_vars', ())
+        writer = EvalWriter(archive_name, archive_dir, saved_vars)
         for k, v in writer_config.items():
             try:
                 setattr(writer, k, v)

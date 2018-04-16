@@ -123,7 +123,7 @@ def eval_once(scaffold, eval_op, sess_config):
         else:
             # Compute precision @ 1.
             precision = eval_acc / total_sample_count
-            print('%s; %d: precision @ 1 = %.3f' % (datetime.now(), global_step, precision))
+            print('{}; {}: precision @ 1 = {:.3f}'.format(datetime.now(), global_step, precision))
             results['precision'] = precision
 
         # add results to the summary

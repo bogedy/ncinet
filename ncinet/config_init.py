@@ -31,6 +31,7 @@ class EncoderSessionConfig(SessionConfig):
 
     def eval_metric(self, logits, labels):
         """Calculate norm of the difference of original and output."""
+        logits = tf.nn.sigmoid(logits)
         norms = tf.norm(tf.subtract(labels, logits), ord="fro", axis=[1, 2])
         eval_op = tf.divide(norms, 100 * 100)
         # eval_op = tf.divide(tf.reduce_sum(norms), 100 * 100)

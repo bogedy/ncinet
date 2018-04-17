@@ -2,7 +2,7 @@
 Module to build and train neural networks to predict protein properties.
 """
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 
 # Directory where summaries and checkpoints are written.

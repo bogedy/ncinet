@@ -22,6 +22,7 @@ class EncoderConfig(ModelConfig):
         Dimension of the side of the layer farthest from the latent space.
     """
     is_autoencoder = True
+    label_type = 'fingerprints'
 
     def __init__(self, **kwargs):
         self.n_layers = 3

@@ -56,7 +56,7 @@ class ConfigBase(object):
 class ModelConfig(ConfigBase):
     """Configuration for network structure"""
     is_autoencoder = None                   # type: bool
-    pass
+    label_type = None                       # type: str
 
 
 @freeze

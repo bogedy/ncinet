@@ -159,7 +159,7 @@ class EvalWriter(EvalWriterBase):
         file_name = os.path.join(self.archive_dir, self.archive_name + '.npz')
 
         # assemble the collected data
-        names = ['results', 'names', 'fingerprints', 'topologies']
+        names = ['results', 'names', 'fingerprints', 'labels']
         names.extend(self.activation_names)
 
         input_data = map(np.concatenate, zip(*self.inputs_acc))
@@ -174,7 +174,7 @@ class EvalWriter(EvalWriterBase):
 
 class TopoSessionConfig(InfSessionConfig):
     inf_type = 'topo'
-    model_config = InfConfig()
+    model_config = InfConfig(label_type='topologies')
 
     def batch_gen(self):
         return inputs(eval_data=False, batch_size=self.train_config.batch_size,
@@ -184,7 +184,7 @@ class TopoSessionConfig(InfSessionConfig):
 
 class SignSessionConfig(InfSessionConfig):
     inf_type = 'sign'
-    model_config = InfConfig(n_logits=2)
+    model_config = InfConfig(n_logits=2, label_type='scores')
 
     def batch_gen(self):
         return inputs(eval_data=False, batch_size=self.train_config.batch_size,

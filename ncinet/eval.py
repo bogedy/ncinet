@@ -67,6 +67,8 @@ def eval_once(scaffold, eval_op, sess_config):
         sess_config: initialized SessionConfig
     """
     config = sess_config.eval_config
+    label_type = sess_config.model_config.label_type
+
     with tf.Session() as sess:
         # initialize the session.
         global_step = scaffold['init_fn'](scaffold, sess)
@@ -80,7 +82,7 @@ def eval_once(scaffold, eval_op, sess_config):
         # runtime parameters
         batch_gen = ncinet.ncinet_input.inputs(eval_data=config.use_eval_data, batch_size=config.batch_size,
                                                request=sess_config.request, ingest_config=sess_config.ingest_config,
-                                               data_types=('names', 'fingerprints', 'topologies'), repeat=False)
+                                               data_types=('names', 'fingerprints', label_type), repeat=False)
 
         total_sample_count = len(batch_gen)
         num_iter = int(math.ceil(total_sample_count / config.batch_size))
@@ -94,20 +96,15 @@ def eval_once(scaffold, eval_op, sess_config):
         data_writer.setup(sess)
 
         while step < num_iter:
-            name_batch, print_batch, topo_batch = next(batch_gen)
+            name_batch, print_batch, label_batch = next(batch_gen)
             print_batch = list(print_batch)
-
-            if sess_config.model_config.is_autoencoder:
-                label_batch = print_batch
-            else:
-                label_batch = topo_batch
 
             eval_val, *data_writer.data_ops = sess.run([eval_op] + data_writer.data_ops,
                                                        feed_dict={'prints:0': print_batch,
                                                                   'labels:0': label_batch})
 
             # Collect batch data
-            data_writer.collect_batch((eval_val, name_batch, print_batch, topo_batch))
+            data_writer.collect_batch((eval_val, name_batch, print_batch, label_batch))
 
             eval_acc += np.sum(eval_val)
             step += 1

@@ -38,7 +38,7 @@ def ae_encoder(prints, config, training=True):
         name = "conv{}".format(k)
         k_size = (config.filter_size[k],) * 2
         conv = conv_layer(inputs=pool, filters=config.n_filters[k], kernel_size=k_size, trainable=training,
-                          collection=collection, batch_norm=(k == 0), wd=config.reg_weight[k], name=name)
+                          collection=collection, batch_norm=True, wd=config.reg_weight[k], name=name)
         _activation_summary(conv)
         pool = tf.layers.max_pooling2d(conv, pool_size=(2, 2), strides=(2, 2), padding='same')
 

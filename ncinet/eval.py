@@ -118,12 +118,12 @@ def eval_once(scaffold, eval_op, sess_config):
         results = {}
         if sess_config.model_config.is_autoencoder:
             avg_error = eval_acc / total_sample_count
-            print("{}: average per-pixel error {:.3f}".format(datetime.now(), avg_error))
+            print("{}; step {}: average per-pixel error {:.3f}".format(datetime.now(), global_step, avg_error))
             results['error'] = avg_error
         else:
             # Compute precision @ 1.
             precision = eval_acc / total_sample_count
-            print('%s: precision @ 1 = %.3f' % (datetime.now(), precision))
+            print('{}; {}: precision @ 1 = {:.3f}'.format(datetime.now(), global_step, precision))
             results['precision'] = precision
 
         # add results to the summary
@@ -163,4 +163,4 @@ def main(config):
         tf.gfile.DeleteRecursively(config.eval_config.eval_dir)
         tf.gfile.MakeDirs(config.eval_config.eval_dir)
 
-    evaluate(config)
+    return evaluate(config)

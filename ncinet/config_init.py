@@ -25,12 +25,13 @@ class EncoderSessionConfig(SessionConfig):
 
             # Calculate logits and loss
             from .model import autoencoder
-            logits = autoencoder(prints, config)
+            logits = autoencoder(prints, config, training=(not eval_net))
 
             return logits, labels
 
     def eval_metric(self, logits, labels):
         """Calculate norm of the difference of original and output."""
+        logits = tf.nn.sigmoid(logits)
         norms = tf.norm(tf.subtract(labels, logits), ord="fro", axis=[1, 2])
         eval_op = tf.divide(norms, 100 * 100)
         # eval_op = tf.divide(tf.reduce_sum(norms), 100 * 100)
@@ -51,7 +52,7 @@ class EncoderSessionConfig(SessionConfig):
             while True:
                 prints = next(batch_gen)[0]
                 labels = prints
-                prints = add_noise(prints, 0.1)
+                prints = add_noise(prints, self.train_config.input_noise)
                 yield prints, labels
 
         return wrapped_gen()
@@ -83,7 +84,7 @@ class InfSessionConfig(SessionConfig):
 
             # Calculate logits
             from .model import inf_classify
-            logits = inf_classify(prints, config)
+            logits = inf_classify(prints, config, training=(not eval_net))
 
             return logits, labels
 

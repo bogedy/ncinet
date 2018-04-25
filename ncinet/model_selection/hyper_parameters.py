@@ -139,7 +139,8 @@ def make_config(params, fstring=None, basename=None):
     elif model_type == 'topo' or model_type == 'sign':
         n_logits = 4 if model_type == 'topo' else 2
         session_cls = TopoSessionConfig if model_type == 'topo' else SignSessionConfig
-        model_config = InfConfig(n_logits=n_logits)
+        label_type = 'topologies' if model_type == 'topo' else 'scores'
+        model_config = InfConfig(n_logits=n_logits, label_type=label_type)
 
         # Set up the encoder config (this shouldn't be necessary but we don't save a graphdef, just variable weights.
         # Therefore, we need to know encoder structure to build the trained encoder)

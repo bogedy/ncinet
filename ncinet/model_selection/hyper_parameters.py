@@ -3,58 +3,10 @@ Base machinery for automatically creating config objects.
 """
 import os
 
-import numpy as np
-
-
-class Parameter:
-    """Parameter placeholder for use in random search"""
-    def __init__(self, dist=None, values=None):
-        self._iter = None
-        self.dist = dist
-        self.values = values
-
-    def render(self):
-        """Pick a random parameter"""
-        if self.dist is not None:
-            return self.dist.rvs()
-        else:
-            return np.random.choice(self.values)
-
-    def __iter__(self):
-        if self._iter is None:
-            self._iter = self.values.__iter__()
-        return self._iter
-
-    def __next__(self):
-        return next(self.__iter__())
-
-    def __repr__(self):
-        return "{name}(dist={dist}, values={values})".format(
-            name=self.__class__.__name__, dist=repr(self.dist), values=self.values)
-
-
-class ParamTuple:
-    """Tuple of parameter objects"""
-    def __init__(self, base):
-        self.base = base
-
-    def render(self):
-        """Generate random parameter tuple."""
-        return tuple(map(lambda x: x.render(), self.base))
-
-    def __repr__(self):
-        return "{name}(base={base})".format(name=self.__class__.__name__, base=repr(self.base))
-
-
-def dict_product(param_dict):
-    """Enumerate all possible conditions for a grid search"""
-    from itertools import product
-    return (dict(zip(param_dict, x)) for x in product(*param_dict.values()))
-
 
 def make_config(params, fstring=None, basename=None):
     """construct a full session config with given params"""
-    from ncinet import WORK_DIR, FINGERPRINT_DIR
+    from ncinet import BASE_CONFIG, WORK_DIR
     from ncinet.config_hyper import EncoderConfig, InfConfig
     from ncinet.config_init import EncoderSessionConfig, TopoSessionConfig, SignSessionConfig, EvalWriter
     from ncinet.config_meta import DataIngestConfig, DataRequest, TrainingConfig, EvalConfig, EvalWriterBase
@@ -70,38 +22,19 @@ def make_config(params, fstring=None, basename=None):
     train_dir = os.path.join(WORK_DIR, "{}_train".format(basename))
     eval_dir = os.path.join(WORK_DIR, "{}_eval".format(basename))
 
-    # Make default parameters
-    ingest_config = DataIngestConfig(archive_dir=WORK_DIR,
-                                     fingerprint_dir=FINGERPRINT_DIR,
-                                     score_path=os.path.join(WORK_DIR, "../output.csv"),
-                                     archive_prefix="data")
+    def update_config(config, param_dict):
+        """Updates values in a config object based on a dict of the same structure"""
+        for k, v in param_dict.items():
+            try:
+                setattr(config, k, v)
+            except ValueError as err:
+                print(str(err))
 
-    request = DataRequest()
-    for k, v in params['request_config'].items():
-        try:
-            setattr(request, k, v)
-        except ValueError as err:
-            print(str(err))
-
-    # Update config
-    for k, v in params['ingest_config'].items():
-        try:
-            setattr(ingest_config, k, v)
-        except ValueError as err:
-            print(str(err))
-
+    # Make configs with default parameters
+    ingest_config = DataIngestConfig(**BASE_CONFIG['ingest_config'])
+    request = DataRequest(**BASE_CONFIG['request_config'])
     training_config = TrainingConfig(train_dir=train_dir,
-                                     batch_size=64,
-                                     num_examples_per_epoch_train=14000,
-                                     max_steps=10000,
-                                     initial_learning_rate=0.005,
-                                     num_epochs_per_decay=50.0)
-
-    for k, v in params['training_config'].items():
-        try:
-            setattr(training_config, k, v)
-        except ValueError as err:
-            print(str(err))
+                                     **BASE_CONFIG['training_config'])
 
     # Set up eval writer
     use_writer = params['eval_config'].pop('use_writer', False)
@@ -111,25 +44,21 @@ def make_config(params, fstring=None, basename=None):
         archive_dir = writer_config.pop('archive_dir', WORK_DIR)
         saved_vars = writer_config.pop('saved_vars', ())
         writer = EvalWriter(archive_name, archive_dir, saved_vars)
-        for k, v in writer_config.items():
-            try:
-                setattr(writer, k, v)
-            except ValueError as err:
-                print(str(err))
+
+        update_config(writer, writer_config)
     else:
         writer = EvalWriterBase()
 
-    eval_config = EvalConfig(batch_size=100,
-                             eval_dir=eval_dir,
+    eval_config = EvalConfig(eval_dir=eval_dir,
                              train_dir=train_dir,
-                             run_once=True,
-                             data_writer=writer)
+                             data_writer=writer,
+                             **BASE_CONFIG['eval_config'])
 
-    for k, v in params['eval_config'].items():
-        try:
-            setattr(eval_config, k, v)
-        except ValueError as err:
-            print(str(err))
+    # Update config objects based on provided dict
+    update_config(ingest_config, params['ingest_config'])
+    update_config(request, params['request_config'])
+    update_config(training_config, params['training_config'])
+    update_config(eval_config, params['eval_config'])
 
     # Set model specific parameters
     model_type = params.pop('model_type', None)
@@ -150,11 +79,7 @@ def make_config(params, fstring=None, basename=None):
     else:
         raise ValueError
 
-    for k, v in params['model_config'].items():
-        try:
-            setattr(model_config, k, v)
-        except ValueError as err:
-            print(str(err))
+    update_config(model_config, params['model_config'])
 
     session_config = session_cls(model_config=model_config,
                                  train_config=training_config,

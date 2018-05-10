@@ -1,0 +1,21 @@
+ingest_config: {}
+
+request_config: {}
+
+training_config:
+  max_steps: 10000
+  num_examples_per_epoch_train: 14000
+  initial_learning_rate: 0.005
+  num_epochs_per_decay: 50.
+
+eval_config:
+  run_once: False
+  use_writer: False
+
+model_type: 'sign'
+
+model_config:
+  encoder_config:
+    n_filters: !!python/tuple [16, 10, 16]
+    filter_size: !!python/tuple [5, 5, 5]
+    reg_weight: !!python/tuple [0.01, 0.0005, 0.028]

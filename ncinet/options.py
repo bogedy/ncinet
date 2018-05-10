@@ -44,7 +44,7 @@ def parse_args():
     # which model to train
     model_grp_w = arg_parser.add_argument_group(title="Model type options")
     model_grp = model_grp_w.add_mutually_exclusive_group()
-    model_grp.add_argument('--ae', action='store_const', dest='model', const='AE',
+    model_grp.add_argument('--ae', action='store_const', dest='model', const='encoder',
                            help="Build autoencoder model")
     model_grp.add_argument('--topo', action='store_const', dest='model', const='topo',
                            help="Build inference model for topology prediction")

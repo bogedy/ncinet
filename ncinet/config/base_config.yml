@@ -1,0 +1,21 @@
+ingest_config:
+  full_archive_name: "data_full.npz"
+  archive_dir: "<path_to_data_archives>"
+  fingerprint_dir: "<path_to_nci_fingerprints>"
+  score_path: "<path_to_stability_csv>"
+  archive_prefix: "data"
+  tt_tags: !!python/tuple ["train", "eval"]
+  xv_tags: !!python/tuple ["xvTrain", "xvVal"]
+
+request_config: {}
+
+training_config:
+  batch_size: 64
+  log_frequency: 25
+  summary_steps: 100
+  checkpoint_secs: 120
+  input_noise: 0.05
+
+eval_config:
+  batch_size: 128
+  eval_interval: 120

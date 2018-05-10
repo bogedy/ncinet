@@ -63,15 +63,15 @@ class ModelConfig(ConfigBase):
 class DataIngestConfig(ConfigBase):
     """Parameters for data ingest and processing"""
     # Data for constructing archive paths
-    full_archive_name = "data_full.npz"
+    full_archive_name = None                # type: str
     archive_dir = None                      # type: str
     fingerprint_dir = None                  # type: str
     score_path = None                       # type: str
 
     # parameters for programmatically constructing archive names
-    archive_prefix = None
-    tt_tags = ("train", "eval")
-    xv_tags = ("xvTrain", "xvVal")
+    archive_prefix = None                   # type: str
+    tt_tags = None                          # type: Tuple[str, str]
+    xv_tags = None                          # type: Tuple[str, str]
 
 
 @freeze
@@ -92,9 +92,9 @@ class TrainingConfig(ConfigBase):
 
     # Training parameters
     max_steps = None                        # type: int
-    log_frequency = 25
-    summary_steps = 100
-    checkpoint_secs = 120
+    log_frequency = None                    # type: int
+    summary_steps = None                    # type: int
+    checkpoint_secs = None                  # type: int
 
     # Constants for learning rate schedule
     use_learning_rate_decay = True
@@ -102,7 +102,7 @@ class TrainingConfig(ConfigBase):
     initial_learning_rate = None            # type: float
     num_epochs_per_decay = None             # type: float
     learning_rate_decay_factor = (1/np.e)
-    input_noise = 0.05
+    input_noise = None                      # type: float
 
 
 @freeze
@@ -115,7 +115,7 @@ class EvalConfig(ConfigBase):
 
     use_eval_data = True
     run_once = None                         # type: bool
-    eval_interval = 120
+    eval_interval = None                    # type: int
 
 
 @freeze

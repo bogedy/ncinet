@@ -15,6 +15,52 @@ from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
 from typing import Any, Mapping, Dict, Tuple, Union, TypeVar
 
 
+class Parameter:
+    """Parameter placeholder for use in random search"""
+    def __init__(self, dist=None, values=None):
+        self._iter = None
+        self.dist = dist
+        self.values = values
+
+    def render(self):
+        """Pick a random parameter"""
+        if self.dist is not None:
+            return self.dist.rvs()
+        else:
+            return np.random.choice(self.values)
+
+    def __iter__(self):
+        if self._iter is None:
+            self._iter = self.values.__iter__()
+        return self._iter
+
+    def __next__(self):
+        return next(self.__iter__())
+
+    def __repr__(self):
+        return "{name}(dist={dist}, values={values})".format(
+            name=self.__class__.__name__, dist=repr(self.dist), values=self.values)
+
+
+class ParamTuple:
+    """Tuple of parameter objects"""
+    def __init__(self, base):
+        self.base = base
+
+    def render(self):
+        """Generate random parameter tuple."""
+        return tuple(map(lambda x: x.render(), self.base))
+
+    def __repr__(self):
+        return "{name}(base={base})".format(name=self.__class__.__name__, base=repr(self.base))
+
+
+def dict_product(param_dict):
+    """Enumerate all possible conditions for a grid search"""
+    from itertools import product
+    return (dict(zip(param_dict, x)) for x in product(*param_dict.values()))
+
+
 def add_dir_index(config, fold):
     # type: (SessionConfig, int) -> SessionConfig
     """Updates a config to index train and eval dirs by fold"""
@@ -89,7 +135,6 @@ def join_dict(main_dict, aux_dict):
 
 def grid_search(fixed_params, var_params, n_folds=3):
     """Exhaustively evaluate all combinations of parameters"""
-    from .hyper_parameters import dict_product
 
     # results dicts hold both parameter settings and evaluation metrics
     results = []
@@ -140,17 +185,3 @@ def random_search(fixed_params, var_params, n_iter, n_folds=3):
         results.append(param_dict)
 
     return results
-
-
-def main():
-    fixed_dict = dict(max_steps=2,
-                      train_batch_size=64,
-                      initial_learning_rate=0.005,
-                      epochs_per_decay=50.,
-                      filter_size=[5, 5, 5])
-
-    var_dict = dict(n_filters=[[18, 18, 12], [12, 12, 12]],
-                    reg_weight=[[0.001]*3, [0.005]*3])
-
-    result = grid_search(fixed_dict, var_dict, 2)
-    print(result)

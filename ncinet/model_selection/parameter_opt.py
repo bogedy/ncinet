@@ -6,8 +6,8 @@ import os
 import numpy as np
 from datetime import datetime
 
-import ncinet.eval
-import ncinet.train
+from ncinet.eval import main as model_eval
+from ncinet.train import main as model_train
 
 from ncinet.config_meta import SessionConfig, DataRequest
 from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
@@ -15,9 +15,40 @@ from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
 from typing import Any, Mapping, Dict, Tuple, Union, TypeVar
 
 
+# -------------------------------------------
+# Functions to manipulate config dictionaries
+# -------------------------------------------
+def dict_product(param_dict):
+    """Enumerate all possible conditions for a grid search"""
+    from itertools import product
+    return (dict(zip(param_dict, x)) for x in product(*param_dict.values()))
+
+
+# Types for join_dict
+Numeric_T = Union[int, float]
+ConfDict_T = TypeVar('ConfDict_T', Dict[str, Any])
+
+
+def join_dict(main_dict, aux_dict):
+    # type: (ConfDict_T, Mapping[Tuple[str], Numeric_T]) -> ConfDict_T
+    """Update values in a multilevel dict, keys of aux dict are tuples"""
+    from copy import deepcopy
+    main_dict = deepcopy(main_dict)
+    for k_list, v in aux_dict.items():
+        to_update = main_dict
+        for k in k_list[:-1]:
+            to_update = to_update[k]
+        to_update[k_list[-1]] = v
+    return main_dict
+
+
+# --------------------------------------------
+# Classes to represent random parameter values
+# --------------------------------------------
 class Parameter:
     """Parameter placeholder for use in random search"""
     def __init__(self, dist=None, values=None):
+        assert (dist is not None) or (values is not None)
         self._iter = None
         self.dist = dist
         self.values = values
@@ -55,12 +86,9 @@ class ParamTuple:
         return "{name}(base={base})".format(name=self.__class__.__name__, base=repr(self.base))
 
 
-def dict_product(param_dict):
-    """Enumerate all possible conditions for a grid search"""
-    from itertools import product
-    return (dict(zip(param_dict, x)) for x in product(*param_dict.values()))
-
-
+# -------------------------------
+# Helpers to run cross validation
+# -------------------------------
 def add_dir_index(config, fold):
     # type: (SessionConfig, int) -> SessionConfig
     """Updates a config to index train and eval dirs by fold"""
@@ -92,11 +120,11 @@ def eval_fold(base_config, fold, n_folds):
 
     # train the model
     print("{}: Training model on split {}".format(datetime.now(), fold))
-    ncinet.train.main(config=config)
+    model_train(config=config)
 
     # evaluate the model
     print("{}: Evaluating model on split {}".format(datetime.now(), fold))
-    eval_result = ncinet.eval.main(config=config)
+    eval_result = model_eval(config=config)
 
     return eval_result
 
@@ -115,24 +143,9 @@ def xval_condition(config, n_folds):
     return result_stats, raw_results
 
 
-# Types for join_dict
-Numeric_T = Union[int, float]
-ConfDict_T = TypeVar('ConfDict_T', Dict[str, Any])
-
-
-def join_dict(main_dict, aux_dict):
-    # type: (ConfDict_T, Mapping[Tuple[str], Numeric_T]) -> ConfDict_T
-    """update values in a multilevel dict, keys of aux dict are tuples"""
-    from copy import deepcopy
-    main_dict = deepcopy(main_dict)
-    for k_list, v in aux_dict.items():
-        to_update = main_dict
-        for k in k_list[:-1]:
-            to_update = to_update[k]
-        to_update[k_list[-1]] = v
-    return main_dict
-
-
+# ----------------------------
+# Parameter search definitions
+# ----------------------------
 def grid_search(fixed_params, var_params, n_folds=3):
     """Exhaustively evaluate all combinations of parameters"""
 

@@ -2,6 +2,7 @@
 Base machinery for automatically creating config objects.
 """
 import os
+from typing import Any, Mapping, Union
 
 
 def make_config(params, fstring=None, basename=None):
@@ -90,6 +91,7 @@ def make_config(params, fstring=None, basename=None):
 
 
 def ae_fstring(**kw):
+    # type: (**Union[str, Mapping[str, Any]]) -> str
     """Format string for autoencoder"""
     pars = {}
     for v in kw.values():
@@ -101,5 +103,20 @@ def ae_fstring(**kw):
     reg_weight = pars.pop('reg_weight', None)
     initial_learning_rate = pars.pop('initial_learning_rate', None)
     filters_str = ".".join(map(str, n_filters))
-    return "AE_{filters}_reg{reg[0]:.1e}_lr{lr:.1e}".format(
+    return "AE_{filters}_reg{reg[0]:.2e}_lr{lr:.2e}".format(
         filters=filters_str, reg=reg_weight, lr=initial_learning_rate)
+
+
+def inf_fstring(**kw):
+    # type: (**Union[str, Mapping[str, Any]]) -> str
+    """Format string for inference networks"""
+    pars = {}
+    for v in kw.values():
+        try:
+            pars.update(v)
+        except ValueError:
+            pass
+
+    model_type = kw['model_type']
+    encoder_name = os.path.basename(os.path.dirname(pars.pop('encoder_dir')))
+    return "Inf_{i_type}_E{encoder}".format(i_type=model_type, encoder=encoder_name)

@@ -1,3 +1,5 @@
+work_dir: "<dir_for_checkpoints>"
+
 ingest_config:
   full_archive_name: "data_full.npz"
   archive_dir: "<path_to_data_archives>"

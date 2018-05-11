@@ -14,5 +14,4 @@ with open(BASE_CONF_FILE, 'r') as base_conf_file:
     BASE_CONFIG = yaml.load(base_conf_file)
 
 # Directory where summaries and checkpoints are written.
-#WORK_DIR = '/work/05187/ams13/maverick/Working/TensorFlow/ncinet'
-WORK_DIR = 'C:/Users/schan/Documents/TF_run'
+WORK_DIR = BASE_CONFIG.pop('work_dir')

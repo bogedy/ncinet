@@ -37,7 +37,7 @@ def cli():
     if options.mode == 'grid':
         from .model_selection.parameter_opt import grid_search
         with open(options.grid, 'r') as conf_file:
-            params = yaml.safe_load(conf_file)
+            params = yaml.load(conf_file)
 
         results = grid_search(**params)
 

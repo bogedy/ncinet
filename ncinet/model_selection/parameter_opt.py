@@ -12,7 +12,7 @@ from ncinet.train import main as model_train
 from ncinet.config_meta import SessionConfig, DataRequest
 from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
 
-from typing import Any, Mapping, Dict, Tuple, Union, TypeVar
+from typing import Any, Mapping, Dict, Tuple, Union
 
 
 # -------------------------------------------
@@ -26,7 +26,7 @@ def dict_product(param_dict):
 
 # Types for join_dict
 Numeric_T = Union[int, float]
-ConfDict_T = TypeVar('ConfDict_T', Dict[str, Any])
+ConfDict_T = Dict[str, Any]
 
 
 def join_dict(main_dict, aux_dict):

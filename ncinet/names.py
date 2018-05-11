@@ -12,11 +12,12 @@ from ncinet.cli import standard_config
 from ncinet.train import main as train_model
 from ncinet.eval import main as eval_model
 from ncinet.model_selection.parameter_opt import xval_condition, grid_search, random_search
+from ncinet.model_selection.parameter_opt import Parameter, ParamTuple
 
 config_classes = [DataRequest, DataIngestConfig, TrainingConfig, EvalConfig, EvalWriter, EvalWriterBase,
                   EncoderConfig, InfConfig, EncoderSessionConfig, InfSessionConfig, SignSessionConfig,
                   TopoSessionConfig]
-config_helpers = [make_config, standard_config]
+config_helpers = [make_config, standard_config, Parameter, ParamTuple]
 execution_methods = [train_model, eval_model, xval_condition, grid_search, random_search]
 
 __all__ = config_classes + config_helpers + execution_methods

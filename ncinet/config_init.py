@@ -17,17 +17,23 @@ class EncoderSessionConfig(SessionConfig):
     model_config = EncoderConfig()
 
     def logits_network_gen(self, graph, config, eval_net=False):
-        # type: (tf.Graph, EncoderConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
+        # type: (tf.Graph, EncoderConfig, bool) -> tf.Tensor
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
-            labels = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="labels")
 
             # Calculate logits and loss
             from .model import autoencoder
             logits = autoencoder(prints, config, training=(not eval_net))
 
-            return logits, labels
+            return logits
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Construct placeholders for the fingerprints."""
+        with graph.as_default():
+            labels = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="labels")
+            return labels
 
     def eval_metric(self, logits, labels):
         """Calculate norm of the difference of original and output."""
@@ -60,33 +66,33 @@ class EncoderSessionConfig(SessionConfig):
 
 class InfSessionConfig(SessionConfig):
     xent_type = 'softmax'
-    inf_type = None             # type: str
+    model_config = None         # type: InfConfig
 
     def logits_network_gen(self, graph, config, eval_net=False):
-        # type: (tf.Graph, InfConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
+        # type: (tf.Graph, InfConfig, bool) -> tf.Tensor
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
-
-            # Placeholders and preprocessing for labels.
-            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
-
-            if not eval_net:
-                if self.inf_type == "topo":
-                    labels = tf.one_hot(labels_input, 4, dtype=tf.float32)
-                elif self.inf_type == "sign":
-                    labels_index = tf.floordiv(tf.add(tf.cast(tf.sign(labels_input), tf.int32), 1), 2)
-                    labels = tf.one_hot(labels_index, 2, dtype=tf.float32)
-                else:
-                    raise ValueError
-            else:
-                labels = labels_input
 
             # Calculate logits
             from .model import inf_classify
             logits = inf_classify(prints, config, training=(not eval_net))
 
-            return logits, labels
+            return logits
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Serve class labels as class indices or one-hot vectors as needed."""
+        with graph.as_default():
+            # Placeholders and preprocessing for labels.
+            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
+
+            if not eval_net:
+                labels = tf.one_hot(labels_input, self.model_config.n_logits, dtype=tf.float32)
+            else:
+                labels = labels_input
+
+            return labels
 
     def eval_metric(self, logits, labels):
         """Calculate precision @1"""

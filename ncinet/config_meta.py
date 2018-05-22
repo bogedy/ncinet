@@ -161,8 +161,13 @@ class SessionConfig(ConfigBase):
     request = None                          # type: DataRequest
 
     def logits_network_gen(self, graph, config, eval_net=False):
-        # type: (tf.Graph, ModelConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
-        """Constructs main network. Returns logits, labels tensors"""
+        # type: (tf.Graph, ModelConfig, bool) -> tf.Tensor
+        """Constructs main network. Returns a logits tensor."""
+        raise NotImplemented
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Serve the labels for the model."""
         raise NotImplemented
 
     def eval_metric(self, logits, labels):

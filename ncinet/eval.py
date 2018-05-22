@@ -140,7 +140,8 @@ def evaluate(config):
     """Eval model for a number of steps."""
     with tf.Graph().as_default() as g:
         # Construct computation graph
-        logits, labels = config.logits_network_gen(g, config.model_config, eval_net=True)
+        logits = config.logits_network_gen(g, config.model_config, eval_net=True)
+        labels = config.labels_network_gen(g, eval_net=True)
  
         # Build the eval operations.
         eval_op = config.eval_metric(logits, labels)

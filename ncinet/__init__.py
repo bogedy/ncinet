@@ -5,7 +5,7 @@ Module to build and train neural networks to predict protein properties.
 import os
 import yaml
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 BASE_CONF_FILE = os.path.join(CONFIG_DIR, "base_config.yml")

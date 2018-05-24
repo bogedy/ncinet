@@ -327,3 +327,17 @@ def load_data_from_raws(config):
         raise ValueError
 
     print("raw data loaded and saved")
+
+
+def load_prediction_data(config):
+    # type: (PredictIngestConfig) -> None
+    """Load prediction data from tables and write to archive."""
+    # Load data from raws
+    predict_data = load_data_from_tables(config.dataframe_path, config.nci_dir, expect_scores=False)
+    topo_index = read_topo_labels(os.path.join(config.archive_dir, config.topo_index_name))
+
+    # Apply topo transform
+    predict_data['topologies'] = apply_topo_index(predict_data['topologies'], topo_index)
+
+    # Save archive
+    np.savez(os.path.join(config.archive_dir, config.archive_name), **predict_data)

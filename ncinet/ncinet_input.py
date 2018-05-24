@@ -15,7 +15,7 @@ import numpy as np
 from typing import Mapping, MutableSequence, List, Tuple, Sized, Iterable
 
 from .data_ingest import load_data_from_raws
-from .config_meta import DataIngestConfig, DataRequest
+from .config_meta import DataIngestConfig, PredictIngestConfig, DataRequest
 
 
 def load_data_from_archive(archive_path):
@@ -310,5 +310,25 @@ def training_inputs(eval_data, batch_size, request, ingest_config, data_types=('
     data_arrs = [data_dict[k] for k in data_types if k in data_dict]
     data_len = len(data_arrs[0])
     data_gen = inf_datagen(data_arrs, batch_size, repeat)
+
+    return DataStream(data_len, data_gen)
+
+
+def predict_inputs(ingest_config):
+    # type: (PredictIngestConfig) -> DataStream
+    """Constructs a batch generator for unlabeled inputs."""
+    from ncinet.data_ingest import load_prediction_data
+
+    # Load data from source
+    archive_path = os.path.join(ingest_config.archive_dir, ingest_config.archive_name)
+    if not os.path.exists(archive_path):
+        load_prediction_data(ingest_config)
+
+    data_dict = load_data_from_archive(archive_path)
+
+    # Construct data generator
+    input_arrs = [data_dict['names'], data_dict['fingerprints']]
+    data_len = len(input_arrs[0])
+    data_gen = inf_datagen(input_arrs, batch=ingest_config.batch_size, repeat=False)
 
     return DataStream(data_len, data_gen)

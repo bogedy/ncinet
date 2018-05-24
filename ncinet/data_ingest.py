@@ -230,7 +230,7 @@ def join_fingerprint_df(nci_df_path, base_df):
     nci_df = pd.read_table(nci_df_path)
     merged_df = pd.merge(base_df, nci_df, on='name')
 
-    print("Using {}/{} records from {} library.".format(len(merged_df), len(nci_df), merged_df.loc[0, 'library']))
+    print("Using {}/{} records from '{}' library.".format(len(merged_df), len(nci_df), nci_df.loc[0, 'library']))
     return merged_df.drop('library', axis=1)
 
 
@@ -265,10 +265,13 @@ def load_data_from_tables(df_path, nci_dir, expect_scores=True):
 
     # Concatenate individual dfs
     joined_df = pd.concat(per_library_dfs, axis=0, ignore_index=True)
+    joined_df = joined_df.rename(columns={'name': 'names'})
+
+    print("Using {}/{} records from '{}'".format(len(joined_df), len(main_df), os.path.basename(df_path)))
 
     # Extract and reshape nci data, assumes 100 x 100 fingerprints
     nci_labels = ['nci{}'.format(i) for i in range(1, 10001)]
-    nci_data = joined_df.loc[:, nci_labels].values.reshape(100, 100, 1)
+    nci_data = joined_df.loc[:, nci_labels].values.reshape((-1, 100, 100, 1))
 
     # Extract other data from df
     output_cols = ['names', 'scores', 'topologies'] if expect_scores else ['names', 'topologies']

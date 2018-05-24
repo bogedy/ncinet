@@ -27,7 +27,6 @@ def load_data_from_archive(archive_path):
     return data
 
 
-# TODO: consider local normalization
 def normalize_prints(eval_batch, train_batch):
     """Performs a min-max norm per-pixel based on training data"""
     min_a, max_a = train_batch.min(axis=0), train_batch.max(axis=0)
@@ -303,7 +302,7 @@ class DataStream(Iterable, Sized):
 
 
 # TODO: refactor to use Dataset objects
-def inputs(eval_data, batch_size, request, ingest_config, data_types=('fingerprints', 'topologies'), repeat=True):
+def training_inputs(eval_data, batch_size, request, ingest_config, data_types=('fingerprints', 'topologies'), repeat=True):
     # type: (bool, int, DataRequest, DataIngestConfig, Tuple[str, ...]) -> DataStream
     """Constructs generators for batches of input data"""
     # mapping of data

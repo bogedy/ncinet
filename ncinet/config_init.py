@@ -7,7 +7,7 @@ import numpy as np
 
 from .config_meta import SessionConfig, EvalWriterBase
 from .config_hyper import EncoderConfig, InfConfig
-from .ncinet_input import inputs
+from .ncinet_input import training_inputs
 
 from typing import List, Tuple, Any
 
@@ -50,9 +50,9 @@ class EncoderSessionConfig(SessionConfig):
             x = x + factor * noise
             return np.clip(x, 0., 1.)
 
-        batch_gen = inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                           request=self.request, ingest_config=self.ingest_config,
-                           data_types=('fingerprints',))
+        batch_gen = training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                                    request=self.request, ingest_config=self.ingest_config,
+                                    data_types=('fingerprints',))
 
         def wrapped_gen():
             while True:
@@ -183,9 +183,9 @@ class TopoSessionConfig(InfSessionConfig):
     model_config = InfConfig(label_type='topologies')
 
     def batch_gen(self):
-        return inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                      request=self.request, ingest_config=self.ingest_config,
-                      data_types=('fingerprints', 'topologies'))
+        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                               request=self.request, ingest_config=self.ingest_config,
+                               data_types=('fingerprints', 'topologies'))
 
 
 class SignSessionConfig(InfSessionConfig):
@@ -193,6 +193,6 @@ class SignSessionConfig(InfSessionConfig):
     model_config = InfConfig(n_logits=2, label_type='scores')
 
     def batch_gen(self):
-        return inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                      request=self.request, ingest_config=self.ingest_config,
-                      data_types=('fingerprints', 'scores'))
+        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                               request=self.request, ingest_config=self.ingest_config,
+                               data_types=('fingerprints', 'scores'))

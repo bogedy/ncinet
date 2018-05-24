@@ -33,12 +33,17 @@ def parse_args():
                           help="Evaluate the latest checkpoint")
     mode_grp.add_argument('--xval', action='store_const', const='xval', dest='mode',
                           help="Evaluate the latest checkpoint")
+    mode_grp.add_argument('--serialize', action='store_const', const='serialize', dest='mode',
+                          help="Serialize a trained model and write to disk")
 
-    ModeAction = FlagAction('mode')
-    mode_grp.add_argument('--grid', action=ModeAction,
+    mode_action = FlagAction('mode')
+    mode_grp.add_argument('--predict', action=mode_action, nargs=2, metavar=('MODEL_PATH', 'DATA_CONFIG'),
+                          help="Predict new results from a trained model.")
+
+    mode_grp.add_argument('--grid', action=mode_action,
                           metavar='GRID_CONF', help="Run grid search hyperparameter optimization")
 
-    mode_grp.add_argument('--rand', action=ModeAction, nargs=2, metavar=('RAND_CONF', 'N_RUNS'),
+    mode_grp.add_argument('--rand', action=mode_action, nargs=2, metavar=('RAND_CONF', 'N_RUNS'),
                           help="Optimize parameters through random selection")
 
     # which model to train
@@ -54,7 +59,7 @@ def parse_args():
                            help="Specify hyperparameters via a config file.")
 
     arg_parser.add_argument('--out_file', action='store', dest='output',
-                            help="file to write optimization")
+                            help="File to write optimization")
 
     # specify work directory
     arg_parser.add_argument('--work_dir', action='store', type=str,

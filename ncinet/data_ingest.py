@@ -317,6 +317,8 @@ def load_data_from_raws(config):
         if type(config.score_path) == str:
             full_data = load_data_from_tables(config.score_path, config.nci_dir)
             np.savez(os.path.join(archive_dir, config.full_archive_name), **full_data)
+            topo_index = index_topologies(full_data['topologies'])
+            write_topo_labels(os.path.join(config.archive_dir, config.topo_index_name), topo_index)
 
         elif type(config.score_path) == tuple:
             # Todo: logic for premade splits

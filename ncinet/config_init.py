@@ -1,5 +1,6 @@
 """
-Model specific constructor functions.
+Defines session configuration objects. These objects contain hyperparameter
+and other data, and also implement functions that differ between models.
 """
 
 import tensorflow as tf
@@ -13,11 +14,13 @@ from typing import List, Tuple, Any
 
 
 class EncoderSessionConfig(SessionConfig):
+    """Session parameters for autoencoder network."""
     xent_type = 'sigmoid'
     model_config = EncoderConfig()
 
     def logits_network_gen(self, graph, config, eval_net=False):
         # type: (tf.Graph, EncoderConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
+        """Generate autoencoder graph."""
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
@@ -38,8 +41,9 @@ class EncoderSessionConfig(SessionConfig):
         return eval_op
 
     def batch_gen(self):
+        """Generate batches of noised NCI plots for the autoencoder"""
         def add_noise(x, factor):
-            import numpy as np
+            """Add white noise to NCI input."""
             noise = np.random.randn(*x.shape)
             x = x + factor * noise
             return np.clip(x, 0., 1.)
@@ -49,6 +53,7 @@ class EncoderSessionConfig(SessionConfig):
                            data_types=('fingerprints',))
 
         def wrapped_gen():
+            """Processes the output of the batch generator"""
             while True:
                 prints = next(batch_gen)[0]
                 labels = prints
@@ -59,11 +64,13 @@ class EncoderSessionConfig(SessionConfig):
 
 
 class InfSessionConfig(SessionConfig):
+    """Session parameters for inference network."""
     xent_type = 'softmax'
     inf_type = None             # type: str
 
     def logits_network_gen(self, graph, config, eval_net=False):
         # type: (tf.Graph, InfConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
+        """Constructs an encoder followed by an inference network."""
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
@@ -101,9 +108,19 @@ class InfSessionConfig(SessionConfig):
 
 
 class EvalWriter(EvalWriterBase):
-    """Stores data from eval runs"""
+    """Stores data from eval runs.
+
+    Parameters
+    ----------
+    archive_name: str
+        Name of the output archive.
+    archive_dir: path
+        Directory to write the output.
+    saved_vars: Tuple[str, ...]
+        List with the names of nodes whose activations will be recorded.
+    """
     def __init__(self, archive_name, archive_dir, saved_vars):
-        # type: (str, str, Tuple[str]) -> None
+        # type: (str, str, Tuple[str, ...]) -> None
         self.archive_name = archive_name
         self.archive_dir = archive_dir
         self.activation_names = saved_vars
@@ -173,20 +190,24 @@ class EvalWriter(EvalWriterBase):
 
 
 class TopoSessionConfig(InfSessionConfig):
+    """Network which learns protein topology from the autoencoder latent space."""
     inf_type = 'topo'
     model_config = InfConfig(label_type='topologies')
 
     def batch_gen(self):
+        """Supplies batches of NCI fingerprints and topologies."""
         return inputs(eval_data=False, batch_size=self.train_config.batch_size,
                       request=self.request, ingest_config=self.ingest_config,
                       data_types=('fingerprints', 'topologies'))
 
 
 class SignSessionConfig(InfSessionConfig):
+    """Learns whether the stability score is > 0 from autoencoder latent space."""
     inf_type = 'sign'
     model_config = InfConfig(n_logits=2, label_type='scores')
 
     def batch_gen(self):
+        """Supplies batches of NCI fingerprints and stability scores."""
         return inputs(eval_data=False, batch_size=self.train_config.batch_size,
                       request=self.request, ingest_config=self.ingest_config,
                       data_types=('fingerprints', 'scores'))

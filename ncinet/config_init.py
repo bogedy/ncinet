@@ -80,26 +80,8 @@ class InfSessionConfig(SessionConfig):
 
             return logits
 
-    def labels_network_gen(self, graph, eval_net=False):
-        # type: (tf.Graph, bool) -> tf.Tensor
-        """Serve class labels as class indices or one-hot vectors as needed."""
-        with graph.as_default():
-            # Placeholders and preprocessing for labels.
-            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
-
-            if not eval_net:
-                labels = tf.one_hot(labels_input, self.model_config.n_logits, dtype=tf.float32)
-            else:
-                labels = labels_input
-
-            return labels
-
     def eval_metric(self, logits, labels):
         """Calculate precision @1"""
-        # Convert stability score to one_hot (x > 0)
-        if self.inf_type == "sign":
-            labels = tf.floordiv(tf.add(tf.sign(labels), 1), 2)
-
         labels = tf.cast(labels, tf.int32)
         top_k = tf.nn.in_top_k(logits, labels, 1)
         # eval_op = tf.count_nonzero(top_k)
@@ -182,6 +164,21 @@ class TopoSessionConfig(InfSessionConfig):
     inf_type = 'topo'
     model_config = InfConfig(label_type='topologies')
 
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Serve class labels as class indices or one-hot vectors as needed."""
+        with graph.as_default():
+            # Placeholders and preprocessing for labels.
+            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
+
+            with tf.variable_scope("Labels"):
+                if not eval_net:
+                    labels = tf.one_hot(labels_input, self.model_config.n_logits, dtype=tf.float32)
+                else:
+                    labels = labels_input
+
+                return labels
+
     def batch_gen(self):
         return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
                                request=self.request, ingest_config=self.ingest_config,
@@ -191,6 +188,25 @@ class TopoSessionConfig(InfSessionConfig):
 class SignSessionConfig(InfSessionConfig):
     inf_type = 'sign'
     model_config = InfConfig(n_logits=2, label_type='scores')
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Serve class labels as class indices or one-hot vectors as needed."""
+        with graph.as_default():
+            # Placeholders and preprocessing for labels.
+            labels_input = tf.placeholder(tf.float32, shape=[None], name="labels")
+
+            with tf.variable_scope("Labels"):
+                # Convert stability score to bool (x > 0)
+                labels = tf.floordiv(tf.add(tf.sign(labels_input), 1), 2)
+                labels = tf.cast(labels, dtype=tf.int32)
+
+                if not eval_net:
+                    labels = tf.one_hot(labels, self.model_config.n_logits, dtype=tf.float32)
+                else:
+                    labels = labels
+
+                return labels
 
     def batch_gen(self):
         return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,

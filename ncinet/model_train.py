@@ -28,10 +28,12 @@ def loss(logits, labels, xent_type="softmax"):
     tf.summary.histogram("logits", tf.nn.sigmoid(logits))
 
     # batch entropy
-    ent_f = tf.nn.softmax_cross_entropy_with_logits if xent_type == 'softmax' \
-        else tf.nn.sigmoid_cross_entropy_with_logits
-    x_ent = ent_f(logits=logits, labels=labels, name="entropy_per_ex")
-    x_ent_mean = tf.reduce_mean(x_ent, name="cross_entropy")
+    with tf.variable_scope("Entropy"):
+        ent_f = tf.nn.softmax_cross_entropy_with_logits if xent_type == 'softmax' \
+                    else tf.nn.sigmoid_cross_entropy_with_logits
+        x_ent = ent_f(logits=logits, labels=labels, name="entropy_per_ex")
+        x_ent_mean = tf.reduce_mean(x_ent, name="cross_entropy")
+
     tf.add_to_collection('losses', x_ent_mean)
 
     # The total loss is the cross entropy loss plus all of the weight decay terms (L2 loss).

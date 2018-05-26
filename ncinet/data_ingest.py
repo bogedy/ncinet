@@ -242,7 +242,7 @@ def load_data_from_tables(df_path, nci_dir, expect_scores=True):
     ----------
     df_path: path
         Path to the score and topology DataFrame. Should be in CSV format with
-        `name`, `dssp`, and possibly `stabilityscore` columns.
+        `name`, `dssp`, and possibly `stabilityscore` and `stable?` columns.
     nci_dir: path
         Directory to search for NCI DataFrames.
     expect_scores: bool
@@ -250,7 +250,7 @@ def load_data_from_tables(df_path, nci_dir, expect_scores=True):
     """
 
     # Load the DataFrame specifying scores and topologies
-    columns = ['name', 'dssp', 'stabilityscore'] if expect_scores else ['name', 'dssp']
+    columns = ['name', 'dssp', 'stabilityscore', 'stable?'] if expect_scores else ['name', 'dssp']
     main_df = pd.read_table(df_path, sep=',', usecols=columns)
     main_df.loc[:, 'dssp'] = main_df.loc[:, 'dssp'].map(topo_from_dssp)
     main_df = main_df.rename(columns={'dssp': 'topologies', 'stabilityscore': 'scores'})
@@ -274,7 +274,7 @@ def load_data_from_tables(df_path, nci_dir, expect_scores=True):
     nci_data = joined_df.loc[:, nci_labels].values.reshape((-1, 100, 100, 1))
 
     # Extract other data from df
-    output_cols = ['names', 'scores', 'topologies'] if expect_scores else ['names', 'topologies']
+    output_cols = ['names', 'scores', 'topologies', 'stable?'] if expect_scores else ['names', 'topologies']
     output_dict = {c_name: joined_df.loc[:, c_name].values for c_name in output_cols}
     output_dict['fingerprints'] = nci_data
 

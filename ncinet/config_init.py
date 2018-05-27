@@ -87,6 +87,12 @@ class InfSessionConfig(SessionConfig):
         # eval_op = tf.count_nonzero(top_k)
         return top_k
 
+    def batch_gen(self):
+        """Generate batches of NCI prints and labels."""
+        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                               request=self.request, ingest_config=self.ingest_config,
+                               data_types=('fingerprints', self.model_config.label_type))
+
 
 class EvalWriter(EvalWriterBase):
     """Stores data from eval runs"""
@@ -161,7 +167,6 @@ class EvalWriter(EvalWriterBase):
 
 
 class TopoSessionConfig(InfSessionConfig):
-    inf_type = 'topo'
     model_config = InfConfig(label_type='topologies')
 
     def labels_network_gen(self, graph, eval_net=False):
@@ -179,14 +184,8 @@ class TopoSessionConfig(InfSessionConfig):
 
                 return labels
 
-    def batch_gen(self):
-        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                               request=self.request, ingest_config=self.ingest_config,
-                               data_types=('fingerprints', 'topologies'))
-
 
 class SignSessionConfig(InfSessionConfig):
-    inf_type = 'sign'
     model_config = InfConfig(n_logits=2, label_type='scores')
 
     def labels_network_gen(self, graph, eval_net=False):
@@ -207,8 +206,3 @@ class SignSessionConfig(InfSessionConfig):
                     labels = labels
 
                 return labels
-
-    def batch_gen(self):
-        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                               request=self.request, ingest_config=self.ingest_config,
-                               data_types=('fingerprints', 'scores'))

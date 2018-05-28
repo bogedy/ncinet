@@ -206,3 +206,22 @@ class SignSessionConfig(InfSessionConfig):
                     labels = labels
 
                 return labels
+
+
+class StableSessionConfig(InfSessionConfig):
+    """Classifier to predict assigned stability labels."""
+    model_config = InfConfig(n_logits=2, label_type='stable?')
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Yield class labels or one-hot vectors as needed."""
+        with graph.as_default():
+            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
+
+            with tf.variable_scope("Labels"):
+                if not eval_net:
+                    labels = tf.one_hot(labels_input, self.model_config.n_logits, dtype=tf.float32)
+                else:
+                    labels = labels_input
+
+                return labels

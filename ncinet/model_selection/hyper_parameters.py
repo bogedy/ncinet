@@ -9,7 +9,7 @@ def make_config(params, fstring=None, basename=None):
     """construct a full session config with given params"""
     from ncinet import BASE_CONFIG, WORK_DIR
     from ncinet.config_hyper import EncoderConfig, InfConfig
-    from ncinet.config_init import EncoderSessionConfig, TopoSessionConfig, SignSessionConfig, EvalWriter
+    from ncinet.config_init import EncoderSessionConfig, TopoSessionConfig, SignSessionConfig, StableSessionConfig, EvalWriter
     from ncinet.config_meta import DataIngestConfig, DataRequest, TrainingConfig, EvalConfig, EvalWriterBase
 
     # make base name, give precedence to parametrically specified basename, then to provided formatter
@@ -63,14 +63,18 @@ def make_config(params, fstring=None, basename=None):
 
     # Set model specific parameters
     model_type = params.pop('model_type', None)
+
+    # Map of type keys to SessionConfig subclasses
+    config_map = {'topo': TopoSessionConfig,
+                  'sign': SignSessionConfig,
+                  'stable': StableSessionConfig}
+
     if model_type == 'encoder':
         model_config = EncoderConfig(n_layers=3, init_dim=(100, 50, 25))
         session_cls = EncoderSessionConfig
-    elif model_type == 'topo' or model_type == 'sign':
-        n_logits = 4 if model_type == 'topo' else 2
-        session_cls = TopoSessionConfig if model_type == 'topo' else SignSessionConfig
-        label_type = 'topologies' if model_type == 'topo' else 'scores'
-        model_config = InfConfig(n_logits=n_logits, label_type=label_type)
+    elif model_type in config_map:
+        session_cls = config_map[model_type]
+        model_config = session_cls.model_config
 
         # Set up the encoder config (this shouldn't be necessary but we don't save a graphdef, just variable weights.
         # Therefore, we need to know encoder structure to build the trained encoder)
@@ -80,8 +84,10 @@ def make_config(params, fstring=None, basename=None):
     else:
         raise ValueError
 
+    # Update ModelConfig parameters from config file
     update_config(model_config, params['model_config'])
 
+    # Build the main session
     session_config = session_cls(model_config=model_config,
                                  train_config=training_config,
                                  eval_config=eval_config,

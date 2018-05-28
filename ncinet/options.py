@@ -55,6 +55,8 @@ def parse_args():
                            help="Build inference model for topology prediction")
     model_grp.add_argument('--sign', action='store_const', dest='model', const='sign',
                            help="Build inference model for predicting the sign of stability")
+    model_grp.add_argument('--stable', action='store_const', dest='model', const='stable',
+                           help="Build a model to predict the `stable?` column.")
     model_grp.add_argument('--conf', action=FlagAction('model'), metavar='CONFIG',
                            help="Specify hyperparameters via a config file.")
 

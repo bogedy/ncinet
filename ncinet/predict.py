@@ -1,3 +1,7 @@
+"""
+Serialize trained models from checkpoints to the SavedModel format. Allows
+models to be deserialized and used to make predictions from novel data.
+"""
 
 import numpy as np
 import tensorflow as tf

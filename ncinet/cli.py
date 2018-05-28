@@ -89,10 +89,12 @@ def cli():
                 config = make_config(conf_dict, fstring=ae_fstring)
 
         else:
+            # Construct a standard basename if none provided
             autoencoder = options.model == 'encoder'
             base_name = ("" if autoencoder else "inf_") + options.model.lower()
             base_name = base_name if options.basename is None else options.basename
 
+            # Make a default config using built-in files
             config = standard_config(options.model, base_name)
 
             if not autoencoder:

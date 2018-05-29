@@ -192,7 +192,7 @@ def apply_topo_index(topo_arr, topo_index):
     # type: (np.ndarray, Sequence[str]) -> np.ndarray
     """Replace string topology labels with integer indices."""
     topo_map = {t: i for i, t in enumerate(topo_index)}
-    return np.array(topo_map[x] for x in topo_arr)
+    return np.array([topo_map[x] for x in topo_arr])
 
 
 def read_topo_labels(path):

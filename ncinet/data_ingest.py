@@ -314,17 +314,21 @@ def load_data_from_raws(config):
 
     elif config.ingest_version == 'sd2_dataframes_v2':
         # Check whether we are using pre-split data
-        if type(config.score_path) == str:
+        if type(config.score_path) is str:
             full_data = load_data_from_tables(config.score_path, config.nci_dir)
-            np.savez(os.path.join(archive_dir, config.full_archive_name), **full_data)
+
+            # Convert topology tags to indices
             topo_index = index_topologies(full_data['topologies'])
             write_topo_labels(os.path.join(config.archive_dir, config.topo_index_name), topo_index)
+            full_data['topologies'] = apply_topo_index(full_data['topologies'], topo_index)
 
-        elif type(config.score_path) == tuple:
+            # Save data to file
+            np.savez(os.path.join(archive_dir, config.full_archive_name), **full_data)
+        elif type(config.score_path) is tuple:
             # Todo: logic for premade splits
             pass
         else:
-            raise ValueError
+            raise ValueError("Unexpected value for 'score_path'")
     else:
         raise ValueError
 

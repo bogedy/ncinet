@@ -79,9 +79,16 @@ def split_train_eval(config, fraction=0.1, topo=None):
         assert len(config.score_path) == 2
         assert topo is None
 
+        raw_archive_fstring = "raw_{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
+        raw_train_archive_path = os.path.join(config.archive_dir, raw_archive_fstring.format(batch=config.tt_tags[0]))
+        raw_eval_archive_path = os.path.join(config.archive_dir, raw_archive_fstring.format(batch=config.tt_tags[1]))
+
+        if not (os.path.exists(raw_train_archive_path) and os.path.exists(raw_eval_archive_path)):
+            load_data_from_raws(config)
+
         # Load pre-split archives
-        train_data = load_data_from_archive(train_archive_path)
-        eval_data = load_data_from_archive(eval_archive_path)
+        train_data = load_data_from_archive(raw_train_archive_path)
+        eval_data = load_data_from_archive(raw_eval_archive_path)
 
     else:
         raise ValueError("Unexpected value in `score_path`")

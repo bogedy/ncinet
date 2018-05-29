@@ -339,7 +339,7 @@ def load_data_from_raws(config):
             test_data['topologies'] = apply_topo_index(test_data['topologies'], topo_index)
 
             # Save data to files
-            name_fstring = "{prefix}_{{batch}}.npz".format(prefix=config.archive_prefix)
+            name_fstring = "raw_{prefix}_{{batch}}.npz".format(prefix=config.archive_prefix)
             np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[0])), **train_data)
             np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[1])), **test_data)
         else:

@@ -7,7 +7,7 @@ from __future__ import division, print_function
 import tensorflow as tf
 import numpy as np
 
-from typing import Any, Iterator, Tuple, List
+from typing import Any, Iterator, Union, Tuple, List
 
 
 def freeze(cls):
@@ -65,13 +65,25 @@ class DataIngestConfig(ConfigBase):
     # Data for constructing archive paths
     full_archive_name = None                # type: str
     archive_dir = None                      # type: str
-    fingerprint_dir = None                  # type: str
-    score_path = None                       # type: str
+    nci_dir = None                          # type: str
+    score_path = None                       # type: Union[str, Tuple[str, str]]
+    ingest_version = 'rocklin_v1'           # type: str
+    topo_index_name = None                  # type: str
 
     # parameters for programmatically constructing archive names
     archive_prefix = None                   # type: str
     tt_tags = None                          # type: Tuple[str, str]
     xv_tags = None                          # type: Tuple[str, str]
+
+
+@freeze
+class PredictIngestConfig(ConfigBase):
+    archive_dir = None                      # type: str
+    nci_dir = None                          # type: str
+    dataframe_path = None                   # type: str
+    topo_index_name = None                  # type: str
+    archive_name = None                     # type: str
+    batch_size = None                       # type: int
 
 
 @freeze
@@ -161,8 +173,13 @@ class SessionConfig(ConfigBase):
     request = None                          # type: DataRequest
 
     def logits_network_gen(self, graph, config, eval_net=False):
-        # type: (tf.Graph, ModelConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
-        """Constructs main network. Returns logits, labels tensors"""
+        # type: (tf.Graph, ModelConfig, bool) -> tf.Tensor
+        """Constructs main network. Returns a logits tensor."""
+        raise NotImplemented
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Serve the labels for the model."""
         raise NotImplemented
 
     def eval_metric(self, logits, labels):

@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
 import math
 import time
 from datetime import datetime
@@ -12,8 +11,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Any, Mapping
 
-import ncinet.ncinet_input
-
+from ncinet.ncinet_input import training_inputs
 from .model import NciKeys
 from .config_meta import SessionConfig, EvalConfig
 
@@ -80,9 +78,9 @@ def eval_once(scaffold, eval_op, sess_config):
             raise RuntimeError
 
         # runtime parameters
-        batch_gen = ncinet.ncinet_input.inputs(eval_data=config.use_eval_data, batch_size=config.batch_size,
-                                               request=sess_config.request, ingest_config=sess_config.ingest_config,
-                                               data_types=('names', 'fingerprints', label_type), repeat=False)
+        batch_gen = training_inputs(eval_data=config.use_eval_data, batch_size=config.batch_size,
+                                    request=sess_config.request, ingest_config=sess_config.ingest_config,
+                                    data_types=('names', 'fingerprints', label_type), repeat=False)
 
         total_sample_count = len(batch_gen)
         num_iter = int(math.ceil(total_sample_count / config.batch_size))
@@ -140,7 +138,8 @@ def evaluate(config):
     """Eval model for a number of steps."""
     with tf.Graph().as_default() as g:
         # Construct computation graph
-        logits, labels = config.logits_network_gen(g, config.model_config, eval_net=True)
+        logits = config.logits_network_gen(g, config.model_config, eval_net=True)
+        labels = config.labels_network_gen(g, eval_net=True)
  
         # Build the eval operations.
         eval_op = config.eval_metric(logits, labels)

@@ -56,6 +56,25 @@ def cli():
         with open(options.output, 'w') as out_file:
             out_file.write(yaml.dump(results))
 
+    elif options.mode == 'predict':
+        import numpy as np
+        from ncinet.config_meta import PredictIngestConfig
+        from ncinet.predict import generate_predictions
+
+        model_path, data_conf_path = options.predict
+
+        # Build an ingest config based on input
+        with open(data_conf_path) as data_conf_file:
+            data_conf_dict = yaml.load(data_conf_file)
+
+        data_conf = PredictIngestConfig(**data_conf_dict)
+
+        # Run predictions
+        results = generate_predictions(model_path, data_conf)
+
+        # Write output
+        np.savez(options.output, **results)
+
     else:
         # Make config
         if options.model == 'conf':
@@ -70,10 +89,12 @@ def cli():
                 config = make_config(conf_dict, fstring=ae_fstring)
 
         else:
+            # Construct a standard basename if none provided
             autoencoder = options.model == 'encoder'
             base_name = ("" if autoencoder else "inf_") + options.model.lower()
             base_name = base_name if options.basename is None else options.basename
 
+            # Make a default config using built-in files
             config = standard_config(options.model, base_name)
 
             if not autoencoder:
@@ -85,7 +106,7 @@ def cli():
         elif options.mode == 'eval':
             from .eval import main
             main(config)
-        else:
+        elif options.mode == 'xval':
             # Cross validate the conditions
             from ncinet.model_selection.parameter_opt import xval_condition
             _, result = xval_condition(config, 3)
@@ -93,3 +114,16 @@ def cli():
             # Write out results
             with open(options.output, 'w') as out_file:
                 yaml.dump(result, out_file)
+        elif options.mode == 'serialize':
+            from ncinet.predict import serialize_model
+
+            if options.output:
+                output_path = os.path.join(WORK_DIR, options.output)
+            else:
+                assert config.eval_config.eval_dir.endswith('_eval')
+                basename = config.eval_config.eval_dir[:-5]
+                output_path = os.path.join(WORK_DIR, basename+'_serialized')
+
+            serialize_model(config, output_path)
+        else:
+            raise ValueError

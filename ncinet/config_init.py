@@ -197,8 +197,9 @@ class SignSessionConfig(InfSessionConfig):
 
             with tf.variable_scope("Labels"):
                 # Convert stability score to bool (x > 0)
-                labels = tf.floordiv(tf.add(tf.sign(labels_input), 1), 2)
-                labels = tf.cast(labels, dtype=tf.int32)
+                labels = tf.where(labels_input > 0,
+                                  tf.ones_like(labels_input, dtype=tf.int32),
+                                  tf.zeros_like(labels_input, dtype=tf.int32))
 
                 if not eval_net:
                     labels = tf.one_hot(labels, self.model_config.n_logits, dtype=tf.float32)

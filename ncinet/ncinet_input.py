@@ -40,42 +40,66 @@ def split_train_eval(config, fraction=0.1, topo=None):
     # type: (DataIngestConfig, float, int) -> None
     """Makes a train-test split of full data archive"""
 
-    # Load data from main archive
-    archive_path = os.path.join(config.archive_dir, config.full_archive_name)
-    if not os.path.exists(archive_path):
-        load_data_from_raws(config)
+    # Paths to split archives
+    t_str = "" if topo is None else "_t{}".format(topo)
+    name_fstring = "{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
 
-    data_dict = load_data_from_archive(archive_path)
+    train_archive_path = os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[0]))
+    eval_archive_path = os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[1]))
 
-    # select for topology
-    if topo is not None:
-        mask = (data_dict['topologies'] == topo)
+    # Decide whether to use pre-split data
+    if type(config.score_path) is str:
+        # Load data from main archive
+        archive_path = os.path.join(config.archive_dir, config.full_archive_name)
+        if not os.path.exists(archive_path):
+            load_data_from_raws(config)
+
+        data_dict = load_data_from_archive(archive_path)
+
+        # select for topology
+        if topo is not None:
+            mask = (data_dict['topologies'] == topo)
+            for k in data_dict:
+                data_dict[k] = data_dict[k][mask]
+
+        n_tot = next(iter(data_dict.values())).shape[0]
+        assert False not in [a.shape[0] == n_tot for a in data_dict.values()]
+        n_eval = int(np.floor(n_tot * fraction))
+
+        # split into eval and train data
+        idx_shuffle = np.random.permutation(np.arange(n_tot))
+        eval_data = {}
+        train_data = {}
+
         for k in data_dict:
-            data_dict[k] = data_dict[k][mask]
+            eval_data[k] = data_dict[k][idx_shuffle[:n_eval]]
+            train_data[k] = data_dict[k][idx_shuffle[n_eval:]]
 
-    n_tot = next(iter(data_dict.values())).shape[0]
-    assert False not in [a.shape[0] == n_tot for a in data_dict.values()]
-    n_eval = int(np.floor(n_tot * fraction))
+    elif type(config.score_path) is tuple:
+        assert len(config.score_path) == 2
+        assert topo is None
 
-    # split into eval and train data
-    idx_shuffle = np.random.permutation(np.arange(n_tot))
-    eval_data = {}
-    train_data = {}
+        raw_archive_fstring = "raw_{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
+        raw_train_archive_path = os.path.join(config.archive_dir, raw_archive_fstring.format(batch=config.tt_tags[0]))
+        raw_eval_archive_path = os.path.join(config.archive_dir, raw_archive_fstring.format(batch=config.tt_tags[1]))
 
-    for k in data_dict:
-        eval_data[k] = data_dict[k][idx_shuffle[:n_eval]]
-        train_data[k] = data_dict[k][idx_shuffle[n_eval:]]
+        if not (os.path.exists(raw_train_archive_path) and os.path.exists(raw_eval_archive_path)):
+            load_data_from_raws(config)
+
+        # Load pre-split archives
+        train_data = load_data_from_archive(raw_train_archive_path)
+        eval_data = load_data_from_archive(raw_eval_archive_path)
+
+    else:
+        raise ValueError("Unexpected value in `score_path`")
 
     # normalize the fingerprints
     eval_data['fingerprints'], train_data['fingerprints'] = \
         normalize_prints(eval_data['fingerprints'], train_data['fingerprints'])
 
     # save arrays
-    t_str = "" if topo is None else "_t{}".format(topo)
-    name_fstring = "{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
-
-    np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[0])), **train_data)
-    np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[1])), **eval_data)
+    np.savez(train_archive_path, **train_data)
+    np.savez(eval_archive_path, **eval_data)
 
 
 def stratified_data_split(full_data, fraction, by='topologies'):

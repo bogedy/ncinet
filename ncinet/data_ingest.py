@@ -192,7 +192,7 @@ def apply_topo_index(topo_arr, topo_index):
     # type: (np.ndarray, Sequence[str]) -> np.ndarray
     """Replace string topology labels with integer indices."""
     topo_map = {t: i for i, t in enumerate(topo_index)}
-    return np.array(topo_map[x] for x in topo_arr)
+    return np.array([topo_map[x] for x in topo_arr])
 
 
 def read_topo_labels(path):
@@ -314,17 +314,36 @@ def load_data_from_raws(config):
 
     elif config.ingest_version == 'sd2_dataframes_v2':
         # Check whether we are using pre-split data
-        if type(config.score_path) == str:
+        if type(config.score_path) is str:
             full_data = load_data_from_tables(config.score_path, config.nci_dir)
-            np.savez(os.path.join(archive_dir, config.full_archive_name), **full_data)
+
+            # Convert topology tags to indices
             topo_index = index_topologies(full_data['topologies'])
             write_topo_labels(os.path.join(config.archive_dir, config.topo_index_name), topo_index)
+            full_data['topologies'] = apply_topo_index(full_data['topologies'], topo_index)
 
-        elif type(config.score_path) == tuple:
-            # Todo: logic for premade splits
-            pass
+            # Save data to file
+            np.savez(os.path.join(archive_dir, config.full_archive_name), **full_data)
+        elif type(config.score_path) is tuple:
+            assert len(config.score_path) == 2
+
+            # Load train and test data
+            train_path, test_path = config.score_path
+            train_data = load_data_from_tables(train_path, config.nci_dir)
+            test_data = load_data_from_tables(test_path, config.nci_dir)
+
+            # Convert topologies to indices
+            topo_index = index_topologies(train_data['topologies'], test_data['topologies'])
+            write_topo_labels(os.path.join(config.archive_dir, config.topo_index_name), topo_index)
+            train_data['topologies'] = apply_topo_index(train_data['topologies'], topo_index)
+            test_data['topologies'] = apply_topo_index(test_data['topologies'], topo_index)
+
+            # Save data to files
+            name_fstring = "raw_{prefix}_{{batch}}.npz".format(prefix=config.archive_prefix)
+            np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[0])), **train_data)
+            np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[1])), **test_data)
         else:
-            raise ValueError
+            raise ValueError("Unexpected value for 'score_path'")
     else:
         raise ValueError
 

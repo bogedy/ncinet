@@ -103,7 +103,8 @@ def train(config):
         global_step = tf.contrib.framework.get_or_create_global_step()
 
         # Make graph for main network
-        logits, labels = config.logits_network_gen(g, config.model_config)
+        logits = config.logits_network_gen(g, config.model_config)
+        labels = config.labels_network_gen(g)
 
         # Calculate loss
         loss = ncinet.model_train.loss(logits, labels, xent_type=config.xent_type)

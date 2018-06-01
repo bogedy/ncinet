@@ -8,7 +8,7 @@ import numpy as np
 
 from .config_meta import SessionConfig, EvalWriterBase
 from .config_hyper import EncoderConfig, InfConfig
-from .ncinet_input import inputs
+from .ncinet_input import training_inputs
 
 from typing import List, Tuple, Any
 
@@ -19,18 +19,24 @@ class EncoderSessionConfig(SessionConfig):
     model_config = EncoderConfig()
 
     def logits_network_gen(self, graph, config, eval_net=False):
-        # type: (tf.Graph, EncoderConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
+        # type: (tf.Graph, EncoderConfig, bool) -> tf.Tensor
         """Generate autoencoder graph."""
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
-            labels = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="labels")
 
             # Calculate logits and loss
             from .model import autoencoder
             logits = autoencoder(prints, config, training=(not eval_net))
 
-            return logits, labels
+            return logits
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Construct placeholders for the fingerprints."""
+        with graph.as_default():
+            labels = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="labels")
+            return labels
 
     def eval_metric(self, logits, labels):
         """Calculate norm of the difference of original and output."""
@@ -48,9 +54,9 @@ class EncoderSessionConfig(SessionConfig):
             x = x + factor * noise
             return np.clip(x, 0., 1.)
 
-        batch_gen = inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                           request=self.request, ingest_config=self.ingest_config,
-                           data_types=('fingerprints',))
+        batch_gen = training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                                    request=self.request, ingest_config=self.ingest_config,
+                                    data_types=('fingerprints',))
 
         def wrapped_gen():
             """Processes the output of the batch generator"""
@@ -66,34 +72,34 @@ class EncoderSessionConfig(SessionConfig):
 class InfSessionConfig(SessionConfig):
     """Session parameters for inference network."""
     xent_type = 'softmax'
-    inf_type = None             # type: str
+    model_config = None         # type: InfConfig
 
     def logits_network_gen(self, graph, config, eval_net=False):
-        # type: (tf.Graph, InfConfig, bool) -> Tuple[tf.Tensor, tf.Tensor]
+        # type: (tf.Graph, InfConfig, bool) -> tf.Tensor
         """Constructs an encoder followed by an inference network."""
         with graph.as_default():
             # Fingerprint placeholders
             prints = tf.placeholder(tf.float32, shape=[None, 100, 100, 1], name="prints")
 
-            # Placeholders and preprocessing for labels.
-            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
-
-            if not eval_net:
-                if self.inf_type == "topo":
-                    labels = tf.one_hot(labels_input, 4, dtype=tf.float32)
-                elif self.inf_type == "sign":
-                    labels_index = tf.floordiv(tf.add(tf.cast(tf.sign(labels_input), tf.int32), 1), 2)
-                    labels = tf.one_hot(labels_index, 2, dtype=tf.float32)
-                else:
-                    raise ValueError
-            else:
-                labels = labels_input
-
             # Calculate logits
             from .model import inf_classify
             logits = inf_classify(prints, config, training=(not eval_net))
 
-            return logits, labels
+            return logits
+
+    def labels_network_gen(self, graph, eval_net=False):
+        # type: (tf.Graph, bool) -> tf.Tensor
+        """Serve class labels as class indices or one-hot vectors as needed."""
+        with graph.as_default():
+            # Placeholders and preprocessing for labels.
+            labels_input = tf.placeholder(tf.int32, shape=[None], name="labels")
+
+            if not eval_net:
+                labels = tf.one_hot(labels_input, self.model_config.n_logits, dtype=tf.float32)
+            else:
+                labels = labels_input
+
+            return labels
 
     def eval_metric(self, logits, labels):
         """Calculate precision @1"""
@@ -196,9 +202,9 @@ class TopoSessionConfig(InfSessionConfig):
 
     def batch_gen(self):
         """Supplies batches of NCI fingerprints and topologies."""
-        return inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                      request=self.request, ingest_config=self.ingest_config,
-                      data_types=('fingerprints', 'topologies'))
+        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                               request=self.request, ingest_config=self.ingest_config,
+                               data_types=('fingerprints', 'topologies'))
 
 
 class SignSessionConfig(InfSessionConfig):
@@ -208,6 +214,6 @@ class SignSessionConfig(InfSessionConfig):
 
     def batch_gen(self):
         """Supplies batches of NCI fingerprints and stability scores."""
-        return inputs(eval_data=False, batch_size=self.train_config.batch_size,
-                      request=self.request, ingest_config=self.ingest_config,
-                      data_types=('fingerprints', 'scores'))
+        return training_inputs(eval_data=False, batch_size=self.train_config.batch_size,
+                               request=self.request, ingest_config=self.ingest_config,
+                               data_types=('fingerprints', 'scores'))

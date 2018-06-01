@@ -15,7 +15,7 @@ import numpy as np
 from typing import Mapping, MutableSequence, List, Tuple, Sized, Iterable
 
 from .data_ingest import load_data_from_raws
-from .config_meta import DataIngestConfig, DataRequest
+from .config_meta import DataIngestConfig, PredictIngestConfig, DataRequest
 
 
 def load_data_from_archive(archive_path):
@@ -27,7 +27,6 @@ def load_data_from_archive(archive_path):
     return data
 
 
-# TODO: consider local normalization
 def normalize_prints(eval_batch, train_batch):
     """Performs a min-max norm per-pixel based on training data"""
     min_a, max_a = train_batch.min(axis=0), train_batch.max(axis=0)
@@ -41,42 +40,66 @@ def split_train_eval(config, fraction=0.1, topo=None):
     # type: (DataIngestConfig, float, int) -> None
     """Makes a train-test split of full data archive"""
 
-    # Load data from main archive
-    archive_path = os.path.join(config.archive_dir, config.full_archive_name)
-    if not os.path.exists(archive_path):
-        load_data_from_raws(config)
+    # Paths to split archives
+    t_str = "" if topo is None else "_t{}".format(topo)
+    name_fstring = "{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
 
-    data_dict = load_data_from_archive(archive_path)
+    train_archive_path = os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[0]))
+    eval_archive_path = os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[1]))
 
-    # select for topology
-    if topo is not None:
-        mask = (data_dict['topologies'] == topo)
+    # Decide whether to use pre-split data
+    if type(config.score_path) is str:
+        # Load data from main archive
+        archive_path = os.path.join(config.archive_dir, config.full_archive_name)
+        if not os.path.exists(archive_path):
+            load_data_from_raws(config)
+
+        data_dict = load_data_from_archive(archive_path)
+
+        # select for topology
+        if topo is not None:
+            mask = (data_dict['topologies'] == topo)
+            for k in data_dict:
+                data_dict[k] = data_dict[k][mask]
+
+        n_tot = next(iter(data_dict.values())).shape[0]
+        assert False not in [a.shape[0] == n_tot for a in data_dict.values()]
+        n_eval = int(np.floor(n_tot * fraction))
+
+        # split into eval and train data
+        idx_shuffle = np.random.permutation(np.arange(n_tot))
+        eval_data = {}
+        train_data = {}
+
         for k in data_dict:
-            data_dict[k] = data_dict[k][mask]
+            eval_data[k] = data_dict[k][idx_shuffle[:n_eval]]
+            train_data[k] = data_dict[k][idx_shuffle[n_eval:]]
 
-    n_tot = next(iter(data_dict.values())).shape[0]
-    assert False not in [a.shape[0] == n_tot for a in data_dict.values()]
-    n_eval = int(np.floor(n_tot * fraction))
+    elif type(config.score_path) is tuple:
+        assert len(config.score_path) == 2
+        assert topo is None
 
-    # split into eval and train data
-    idx_shuffle = np.random.permutation(np.arange(n_tot))
-    eval_data = {}
-    train_data = {}
+        raw_archive_fstring = "raw_{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
+        raw_train_archive_path = os.path.join(config.archive_dir, raw_archive_fstring.format(batch=config.tt_tags[0]))
+        raw_eval_archive_path = os.path.join(config.archive_dir, raw_archive_fstring.format(batch=config.tt_tags[1]))
 
-    for k in data_dict:
-        eval_data[k] = data_dict[k][idx_shuffle[:n_eval]]
-        train_data[k] = data_dict[k][idx_shuffle[n_eval:]]
+        if not (os.path.exists(raw_train_archive_path) and os.path.exists(raw_eval_archive_path)):
+            load_data_from_raws(config)
+
+        # Load pre-split archives
+        train_data = load_data_from_archive(raw_train_archive_path)
+        eval_data = load_data_from_archive(raw_eval_archive_path)
+
+    else:
+        raise ValueError("Unexpected value in `score_path`")
 
     # normalize the fingerprints
     eval_data['fingerprints'], train_data['fingerprints'] = \
         normalize_prints(eval_data['fingerprints'], train_data['fingerprints'])
 
     # save arrays
-    t_str = "" if topo is None else "_t{}".format(topo)
-    name_fstring = "{prefix}_{{batch}}{t}.npz".format(prefix=config.archive_prefix, t=t_str)
-
-    np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[0])), **train_data)
-    np.savez(os.path.join(config.archive_dir, name_fstring.format(batch=config.tt_tags[1])), **eval_data)
+    np.savez(train_archive_path, **train_data)
+    np.savez(eval_archive_path, **eval_data)
 
 
 def stratified_data_split(full_data, fraction, by='topologies'):
@@ -303,7 +326,7 @@ class DataStream(Iterable, Sized):
 
 
 # TODO: refactor to use Dataset objects
-def inputs(eval_data, batch_size, request, ingest_config, data_types=('fingerprints', 'topologies'), repeat=True):
+def training_inputs(eval_data, batch_size, request, ingest_config, data_types=('fingerprints', 'topologies'), repeat=True):
     # type: (bool, int, DataRequest, DataIngestConfig, Tuple[str, ...]) -> DataStream
     """Constructs generators for batches of input data"""
     # mapping of data
@@ -311,5 +334,25 @@ def inputs(eval_data, batch_size, request, ingest_config, data_types=('fingerpri
     data_arrs = [data_dict[k] for k in data_types if k in data_dict]
     data_len = len(data_arrs[0])
     data_gen = inf_datagen(data_arrs, batch_size, repeat)
+
+    return DataStream(data_len, data_gen)
+
+
+def predict_inputs(ingest_config):
+    # type: (PredictIngestConfig) -> DataStream
+    """Constructs a batch generator for unlabeled inputs."""
+    from ncinet.data_ingest import load_prediction_data
+
+    # Load data from source
+    archive_path = os.path.join(ingest_config.archive_dir, ingest_config.archive_name)
+    if not os.path.exists(archive_path):
+        load_prediction_data(ingest_config)
+
+    data_dict = load_data_from_archive(archive_path)
+
+    # Construct data generator
+    input_arrs = [data_dict['names'], data_dict['fingerprints']]
+    data_len = len(input_arrs[0])
+    data_gen = inf_datagen(input_arrs, batch=ingest_config.batch_size, repeat=False)
 
     return DataStream(data_len, data_gen)

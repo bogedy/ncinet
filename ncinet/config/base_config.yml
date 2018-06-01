@@ -3,11 +3,12 @@ work_dir: "<dir_for_checkpoints>"
 ingest_config:
   full_archive_name: "data_full.npz"
   archive_dir: "<path_to_data_archives>"
-  fingerprint_dir: "<path_to_nci_fingerprints>"
+  nci_dir: "<path_to_nci_fingerprints>"
   score_path: "<path_to_stability_csv>"
   archive_prefix: "data"
   tt_tags: !!python/tuple ["train", "eval"]
   xv_tags: !!python/tuple ["xvTrain", "xvVal"]
+  topo_index_name: 'topo_index.yml'
 
 request_config: {}
 

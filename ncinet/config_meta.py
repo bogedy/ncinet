@@ -8,7 +8,7 @@ are initialized using config files with `make_config`.
 import tensorflow as tf
 import numpy as np
 
-from typing import Any, Iterator, Union, Tuple, List
+from typing import Any, Sequence, Iterator, Union, Tuple, List
 
 
 def freeze(cls):
@@ -208,17 +208,17 @@ class EvalWriterBase:
 
     @property
     def data_ops(self):
-        # type: () -> List[tf.Tensor, ...]
+        # type: () -> List[tf.Tensor]
         """Records ops for each batch during evaluation"""
         return []
 
     @data_ops.setter
     def data_ops(self, ops):
-        # type: (Tuple[np.ndarray]) -> None
+        # type: (Sequence[np.ndarray]) -> None
         pass
 
     def collect_batch(self, batch):
-        # type: (Tuple[Any, ...]) -> None
+        # type: (Sequence[Any]) -> None
         """Collect the data used for evaluation"""
         pass
 

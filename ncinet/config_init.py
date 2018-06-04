@@ -10,7 +10,7 @@ from .config_meta import SessionConfig, EvalWriterBase
 from .config_hyper import EncoderConfig, InfConfig
 from .ncinet_input import training_inputs
 
-from typing import List, Tuple, Any
+from typing import Sequence, List, Tuple, Any
 
 
 class EncoderSessionConfig(SessionConfig):
@@ -146,17 +146,17 @@ class EvalWriter(EvalWriterBase):
 
     @property
     def data_ops(self):
-        # type: () -> List[tf.Tensor, ...]
+        # type: () -> List[tf.Tensor]
         """Ops to evaluate and store at each run"""
         return self.activation_ops
 
     @data_ops.setter
     def data_ops(self, ops):
-        # type: (Tuple[np.ndarray, ...]) -> None
+        # type: (Sequence[np.ndarray]) -> None
         self.activation_acc.append(ops)
 
     def collect_batch(self, batch):
-        # type: (Tuple[Any, ...]) -> None
+        # type: (Sequence[Any]) -> None
         """Collect data used in eval"""
         self.inputs_acc.append(batch)
 

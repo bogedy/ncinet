@@ -1,3 +1,6 @@
+"""
+Evaluates a trained model loaded from checkpoints.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -18,7 +21,11 @@ from .config_meta import SessionConfig, EvalConfig
 
 def _make_scaffold(graph, config, autoencoder=True):
     # type: (tf.Graph, EvalConfig, bool) -> Mapping[str, Any]
-    """Construct a 'scaffold' for the given model"""
+    """Construct a 'scaffold' for the given model.
+
+    The output is a dict with entries approximating the parameters for
+    a `tf.train.Scaffold`.
+    """
     with graph.as_default():
         summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(config.eval_dir, graph)
@@ -47,7 +54,7 @@ def _make_scaffold(graph, config, autoencoder=True):
 
         saver = tf.train.Saver(model_ops)
 
-        scaffold = dict(init_fn=lambda scaffold, sess: load_trained(scaffold['saver'], sess),
+        scaffold = dict(init_fn=lambda session_scaffold, sess: load_trained(session_scaffold['saver'], sess),
                         ready_op=tf.report_uninitialized_variables(),
                         summary_writer=summary_writer,
                         summary_op=summary_op,
@@ -94,16 +101,19 @@ def eval_once(scaffold, eval_op, sess_config):
         data_writer.setup(sess)
 
         while step < num_iter:
+            # Get next batch of examples
             name_batch, print_batch, label_batch = next(batch_gen)
             print_batch = list(print_batch)
 
+            # Run the evaluation metric and collect any tensors to be written
             eval_val, *data_writer.data_ops = sess.run([eval_op] + data_writer.data_ops,
                                                        feed_dict={'prints:0': print_batch,
                                                                   'labels:0': label_batch})
 
-            # Collect batch data
+            # Collect information about this batch of examples
             data_writer.collect_batch((eval_val, name_batch, print_batch, label_batch))
 
+            # Accumulate the value of the eval op for this batch
             eval_acc += np.sum(eval_val)
             step += 1
 
@@ -149,12 +159,16 @@ def evaluate(config):
 
         while True:
             eval_result = eval_once(scaffold, eval_op, config)
+
+            # Return results or run evaluation at intervals
             if config.eval_config.run_once:
                 return eval_result
             time.sleep(config.eval_config.eval_interval)
 
 
 def main(config):
+    # type: (SessionConfig) -> Mapping[str, float]
+    """Delete eval directory if it already exists, then run evaluation."""
     if tf.gfile.Exists(config.eval_config.eval_dir):
         tf.gfile.DeleteRecursively(config.eval_config.eval_dir)
         tf.gfile.MakeDirs(config.eval_config.eval_dir)

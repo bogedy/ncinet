@@ -69,6 +69,7 @@ def ae_decoder(encoded, config):
 
 
 def autoencoder(prints, config, training=True):
+    # type: (tf.Tensor, EncoderConfig, bool) -> tf.Tensor
     """Constructs the autoencoder network."""
     tf.summary.image("fingerprints", prints)
     encoded = ae_encoder(prints, config, training=training)

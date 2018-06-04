@@ -12,16 +12,22 @@ from ncinet.train import main as model_train
 from ncinet.config_meta import SessionConfig, DataRequest
 from ncinet.model_selection.hyper_parameters import make_config, ae_fstring
 
-from typing import Any, Mapping, Dict, Tuple, Union
+from typing import Any, Mapping, Dict, Tuple, Union, Iterable
 
 
 # -------------------------------------------
 # Functions to manipulate config dictionaries
 # -------------------------------------------
+
 def dict_product(param_dict):
-    """Enumerate all possible conditions for a grid search"""
+    # type: (Mapping[str, Iterable]) -> Tuple[Dict, ...]
+    """Enumerate all possible conditions for a grid search.
+
+    Performs a Cartesian product of the values of `param_dict`, preserving
+    the key associated with each parameter.
+    """
     from itertools import product
-    return (dict(zip(param_dict, x)) for x in product(*param_dict.values()))
+    return tuple(dict(zip(param_dict, x)) for x in product(*param_dict.values()))
 
 
 # Types for join_dict
@@ -31,7 +37,11 @@ ConfDict_T = Dict[str, Any]
 
 def join_dict(main_dict, aux_dict):
     # type: (ConfDict_T, Mapping[Tuple[str], Numeric_T]) -> ConfDict_T
-    """Update values in a multilevel dict, keys of aux dict are tuples"""
+    """Update values in a multilevel dict, keys of aux dict are tuples.
+
+    Ex. If `aux_dict` has an entry `{('a', 'b'): 'c'}`, then `main_dict` will
+    be updated as `main_dict['a']['b'] = 'c'`. Works for any level of nesting.
+    """
     from copy import deepcopy
     main_dict = deepcopy(main_dict)
     for k_list, v in aux_dict.items():
@@ -45,6 +55,7 @@ def join_dict(main_dict, aux_dict):
 # --------------------------------------------
 # Classes to represent random parameter values
 # --------------------------------------------
+
 class Parameter:
     """Parameter placeholder for use in random search"""
     def __init__(self, dist=None, values=None):
@@ -54,7 +65,7 @@ class Parameter:
         self.values = values
 
     def render(self):
-        """Pick a random parameter"""
+        """Pick a random parameter based on the distributions."""
         if self.dist is not None:
             return self.dist.rvs()
         else:
@@ -89,9 +100,10 @@ class ParamTuple:
 # -------------------------------
 # Helpers to run cross validation
 # -------------------------------
+
 def add_dir_index(config, fold):
     # type: (SessionConfig, int) -> SessionConfig
-    """Updates a config to index train and eval dirs by fold"""
+    """Updates a config to index train and eval directories by fold"""
     def update_dir_name(dir_path, fold):
         # type: (str, int) -> str
         """Adds a fold index to a single path"""
@@ -146,6 +158,7 @@ def xval_condition(config, n_folds):
 # ----------------------------
 # Parameter search definitions
 # ----------------------------
+
 def grid_search(fixed_params, var_params, n_folds=3):
     """Exhaustively evaluate all combinations of parameters"""
 

@@ -15,9 +15,13 @@ class EncoderConfig(ModelConfig):
     Attributes
     ----------
     n_layers: int
+        Number of layers before the latent space.
     n_filters: List[int]
+        Number of convolution kernels used in each layer. Length is `n_layers`.
     filter_size: List[int]
+        Size of the kernels used. Assumes square kernels. Length is `n_layers`.
     reg_weight: List[float, None]
+        Regularization parameter for each layer. None indicates no regularization is applied.
     init_dim: List[int]
         Dimension of the side of the layer farthest from the latent space.
     """
@@ -39,8 +43,11 @@ class InfConfig(ModelConfig):
     Attributes
     ----------
     n_hidden: int
+        Number of hidden layers.
     dim_hidden: List[int]
+        Dimension of each hidden layer. Length `n_hidden`.
     n_logits: int
+        Number of logits in the output layer.
     encoder_config: EncoderConfig
     """
     is_autoencoder = False

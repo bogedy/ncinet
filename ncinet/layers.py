@@ -7,19 +7,22 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
+from typing import Tuple, Callable, Union
+ActFn_T = Union[None, Callable[[tf.Tensor], tf.Tensor]]
+
 
 class NciKeys:
-    """Keys for grouping different sections of the network"""
+    """Graph collection keys for grouping different sections of the network"""
     AE_ENCODER_VARIABLES = "_NciKeys_ae_encoder_var"
     AE_DECODER_VARIABLES = "_NciKeys_ae_decoder_var"
     INF_VARIABLES = "_NciKeys_inf_var"
 
 
 def weight_var_init(n):
-    """Initialize weights from normal distribution
+    """Initializer for kernel weights.
 
-    Follows recommendation of Glorot et al. (2006) to draw from a distribution
-    with `var = 2.0/n` where `n` is the fan-in of the layer.
+    Follows recommendation of Glorot et al. (2006) to draw from a normal
+    distribution with `var = 2.0/n` where `n` is the fan-in of the layer.
     """
     n = tf.cast(n, tf.float32)
     std_dev = tf.sqrt(2.0 / n)
@@ -58,8 +61,34 @@ def _variable_with_weight_decay(name, shape, initializer, weight_decay, trainabl
 def conv_layer(inputs, filters, kernel_size, padding='SAME',
                activation=tf.nn.relu, trainable=True, collection=None,
                batch_norm=False, wd=None, name='conv'):
-    """Wraps a conv2D layer with biases, normalization, and regularization"""
+    # type: (tf.Tensor, int, Tuple[int, int], str, ActFn_T, bool, str, bool, float, str) -> tf.Tensor
+    """Wraps a conv2D layer with biases, normalization, and regularization.
 
+    Parameters
+    ----------
+    inputs: Tensor
+        Inputs to the convolution layer.
+    filters: int
+        Number of convolution kernels in the layer.
+    kernel_size: Tuple[int, int]
+        Height and width of the convolution kernel.
+    padding: str
+        One of ['SAME', 'VALID'], see `tf.nn.conv2d` documentation.
+    activation: None or f:Tensor -> Tensor
+        If None, then no activation is applied to the output of the layer,
+        otherwise, a function which is applied after all other parts of the
+        layer.
+    trainable: bool
+        Whether the layer variables are trainable. Also sets state of batch norm layer.
+    collection: str
+        Graph collection to which the nodes are added.
+    batch_norm: bool
+        Whether to apply a batch norm layer after convolution.
+    wd: None or float
+        Amount of L2 weight loss applied to kernel.
+    name: str
+        Name of the scope associated with the layer.
+    """
     with tf.variable_scope(name):
         channels = inputs.get_shape().as_list()[-1]
         shape = [kernel_size[0], kernel_size[1], channels, filters]
@@ -88,8 +117,33 @@ def conv_layer(inputs, filters, kernel_size, padding='SAME',
 def fc_layer(inputs, units, activation=tf.nn.relu,
              wd=None, trainable=True, use_bias=True,
              batch_norm=False, collection=None, name="fc"):
-    """Wraps a fully connected layer with bias, regularization, normalization"""
+    # type: (tf.Tensor, int, ActFn_T, float, bool, bool, bool, str, str) -> tf.Tensor
+    """Wraps a fully connected layer with bias, normalization, activations.
 
+    Parameters
+    ----------
+    inputs: Tensor
+        Inputs to the fully connected layer.
+    units: int
+        Number of hidden units in the layer.
+    activation: None or f: Tensor -> Tensor
+        If None, then no activation is applied to the output of the layer,
+        otherwise, a function which is applied after all other parts of the
+        layer.
+    wd: float
+        Amount of L2 weight loss applied to the FC weights.
+    trainable: bool
+        Whether the layer variables are trainable. Also sets state of batch norm layer.
+    use_bias: bool
+        Whether to add a bias before applying the activation function. Does nothing
+        if a batch norm layer is applied.
+    batch_norm: bool
+        Whether to apply a batch norm layer after the FC layer.
+    collection: str
+        Graph collection to which the nodes are added.
+    name: str
+        Name of the scope associated with the layer.
+    """
     with tf.variable_scope(name):
         # flatten the input to [batch, dim]
         in_shape = inputs.get_shape().as_list()
@@ -123,10 +177,26 @@ def fc_layer(inputs, units, activation=tf.nn.relu,
 
 
 def batch_norm_layer(inputs, in_type='conv', collection=None, training=True):
-    """
-    Batch normalization layer that maintains moving averages of
-    mean and var.
-    in_type: one of 'conv' or 'fc'
+    # type: (tf.Tensor, str, str, bool) -> tf.Tensor
+    """Batch normalization layer with moving averages.
+
+    This layer forces activations of each batch to have consistent mean and
+    variance during training, and records moving averages for use during
+    evaluation. Variable naming follows (Ioffe 2015).
+
+    Parameters
+    ----------
+    inputs: Tensor
+        Input to the batch norm layer
+    in_type: str
+        One of 'conv' or 'fc'. Describes whether the input comes from a
+        convolution layer on a fully-connected layer. Used to decide which
+        dimensions to normalize.
+    collection: str
+        Graph collection to which nodes are added.
+    training: bool
+        Controls whether `gamma` and `beta` are trainable. Also controls whether
+        batch statistics or moving averages are used for normalization.
     """
 
     # Configuration parameters not currently exposed
@@ -161,7 +231,7 @@ def batch_norm_layer(inputs, in_type='conv', collection=None, training=True):
         if training:
             mean, var = tf.nn.moments(inputs, axes=dims, keep_dims=False)
 
-            # update averages
+            # update with exponential moving averages
             mean_avg = mean_avg.assign_sub((1 - avg_decay) * tf.subtract(mean_avg, mean))
             var_avg = var_avg.assign_sub((1 - avg_decay) * tf.subtract(var_avg, var))
         else:

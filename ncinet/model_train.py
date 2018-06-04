@@ -1,5 +1,6 @@
 """
-Constructs parts of the graph only used in training.
+Constructs parts of the graph only used in training. This currently includes
+the loss function and the training operation.
 """
 
 import tensorflow as tf
@@ -14,12 +15,13 @@ def loss(logits, labels, xent_type="softmax"):
     """Sums L2Loss for trainable variables.
     Add summary for "Loss" and "Loss/avg".
     Args:
-        logits: Logits from inference().
-        labels: Labels from distorted_inputs or inputs(). Shape should match logits.
+        logits: Tensor of unscaled logits.
+        labels: Tensor of labels. Shape should match logits.
         xent_type: type of loss to perform ("softmax" or "sigmoid")
     Returns:
         Loss tensor of type float.
     """
+    # type: (tf.Tensor, tf.Tensor, str) -> tf.Tensor
     if xent_type != "softmax" and xent_type != "sigmoid":
         raise ValueError
 
@@ -71,14 +73,15 @@ def _add_loss_summaries(total_loss):
 
 def train(total_loss, global_step, config):
     # type: (tf.Tensor, tf.Tensor, TrainingConfig) -> tf.Tensor
-    """Train the model.
-    Create an optimizer and apply to all trainable variables. Add moving
-    average for all trainable variables.
+    """Build an op to run training.
+
+    Calculate the learning rate, create an optimizer and apply to all
+    trainable variables.
     Args:
         total_loss: Total loss from loss().
         global_step: Integer Variable counting the number of training steps
           processed.
-        config: structure containing training hyperparameters
+        config: Config object containing training hyperparameters
     Returns:
         train_op: op for training.
     """
@@ -117,11 +120,6 @@ def train(total_loss, global_step, config):
     for grad, var in grads:
         if grad is not None:
             tf.summary.histogram(var.op.name + '/gradients', grad)
-
-    # Track the moving averages of all trainable variables.
-    #variable_averages = tf.train.ExponentialMovingAverage(
-    #    MOVING_AVERAGE_DECAY, global_step)
-    #variables_averages_op = variable_averages.apply(tf.trainable_variables())
 
     with tf.control_dependencies([apply_gradient_op]):
         train_op = tf.no_op(name='train')

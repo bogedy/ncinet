@@ -130,6 +130,7 @@ def train(config):
                    _LoggerHook(loss, config.train_config)]) as mon_sess:
 
             while not mon_sess.should_stop():
+                # Get a batch of examples
                 print_batch, label_batch = next(batch_gen)
 
                 # Run the graph once
@@ -141,7 +142,6 @@ def train(config):
 
 def main(config):
     """Deletes existing training directory and runs training"""
-    # Delete any existing training files
     if tf.gfile.Exists(config.train_config.train_dir):
         tf.gfile.DeleteRecursively(config.train_config.train_dir)
         tf.gfile.MakeDirs(config.train_config.train_dir)

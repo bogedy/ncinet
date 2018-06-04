@@ -2,10 +2,12 @@
 Base machinery for automatically creating config objects.
 """
 import os
-from typing import Any, Mapping, Union
+from typing import Any, Mapping, MutableMapping, Union, Callable
+from ncinet.config_meta import SessionConfig
 
 
 def make_config(params, fstring=None, basename=None):
+    # type:(MutableMapping[str, Any], Callable, str) -> SessionConfig
     """construct a full session config with given params"""
     from ncinet import BASE_CONFIG, WORK_DIR
     from ncinet.config_hyper import EncoderConfig, InfConfig

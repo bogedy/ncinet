@@ -5,10 +5,11 @@ ingest_config:
   archive_dir: "<path_to_data_archives>"
   nci_dir: "<path_to_nci_fingerprints>"
   score_path: "<path_to_stability_csv>"
+  ingest_version: 'sd2_dataframes_v2'
+  topo_index_name: 'topo_index.yml'
   archive_prefix: "data"
   tt_tags: !!python/tuple ["train", "eval"]
   xv_tags: !!python/tuple ["xvTrain", "xvVal"]
-  topo_index_name: 'topo_index.yml'
 
 request_config: {}
 

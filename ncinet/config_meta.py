@@ -111,7 +111,7 @@ class DataIngestConfig(ConfigBase):
     archive_dir = None                      # type: str
     nci_dir = None                          # type: str
     score_path = None                       # type: Union[str, Tuple[str, str]]
-    ingest_version = 'rocklin_v1'           # type: str
+    ingest_version = None                   # type: str
     topo_index_name = None                  # type: str
 
     # parameters for programmatically constructing archive names

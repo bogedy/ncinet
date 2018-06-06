@@ -32,7 +32,7 @@ def parse_args():
     mode_grp.add_argument('--eval', action='store_const', const='eval', dest='mode',
                           help="Evaluate the latest checkpoint")
     mode_grp.add_argument('--xval', action='store_const', const='xval', dest='mode',
-                          help="Evaluate the latest checkpoint")
+                          help="Cross validate a parameter selection")
     mode_grp.add_argument('--serialize', action='store_const', const='serialize', dest='mode',
                           help="Serialize a trained model and write to disk")
 

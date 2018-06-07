@@ -255,6 +255,18 @@ def load_data_from_tables(df_path, nci_dir, expect_scores=True):
     main_df.loc[:, 'dssp'] = main_df.loc[:, 'dssp'].map(topo_from_dssp)
     main_df = main_df.rename(columns={'dssp': 'topologies', 'stabilityscore': 'scores'})
 
+    def canonicalize_name(name):
+        """Resolves differences in naming between datasets."""
+        if name.endswith('.seq'):
+            i = name.rfind('.pdb')
+            return name[0:i] + '.pdb'
+        if not name.endswith('.pdb'):
+            return name + '.pdb'
+        else:
+            return name
+
+    main_df.loc[:, 'name'] = main_df.loc[:, 'name'].map(canonicalize_name)
+
     # Make individual dfs based on each NCI archive
     per_library_dfs = []
     for nci_file in os.listdir(nci_dir):

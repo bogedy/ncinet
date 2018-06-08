@@ -6,22 +6,24 @@ the loss function and the training operation.
 import tensorflow as tf
 
 from .config_meta import TrainingConfig
+from typing import Sequence
 
 # Constants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 
 
-def loss(logits, labels, xent_type="softmax"):
+def loss(logits, labels, xent_type="softmax", class_weights=None):
     """Sums L2Loss for trainable variables.
     Add summary for "Loss" and "Loss/avg".
     Args:
         logits: Tensor of unscaled logits.
         labels: Tensor of labels. Shape should match logits.
         xent_type: type of loss to perform ("softmax" or "sigmoid")
+        class_weights: List of class weights.
     Returns:
         Loss tensor of type float.
     """
-    # type: (tf.Tensor, tf.Tensor, str) -> tf.Tensor
+    # type: (tf.Tensor, tf.Tensor, str, Sequence[float]) -> tf.Tensor
     if xent_type != "softmax" and xent_type != "sigmoid":
         raise ValueError
 
@@ -34,7 +36,16 @@ def loss(logits, labels, xent_type="softmax"):
         ent_f = tf.nn.softmax_cross_entropy_with_logits if xent_type == 'softmax' \
                     else tf.nn.sigmoid_cross_entropy_with_logits
         x_ent = ent_f(logits=logits, labels=labels, name="entropy_per_ex")
-        x_ent_mean = tf.reduce_mean(x_ent, name="cross_entropy")
+
+        # Weight the entropy
+        if class_weights:
+            class_weights = tf.constant([class_weights])
+            weights = tf.reduce_sum(class_weights * labels, axis=1)
+            weighted_ent = weights * x_ent
+        else:
+            weighted_ent = x_ent
+
+        x_ent_mean = tf.reduce_mean(weighted_ent, name="cross_entropy")
 
     tf.add_to_collection('losses', x_ent_mean)
 

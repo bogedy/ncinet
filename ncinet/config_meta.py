@@ -67,9 +67,13 @@ class ModelConfig(ConfigBase):
     label_type: str
         Type of labels to provide during evaluation. Currently one of
         'scores', 'fingerprints', 'topologies'.
+    class_weights: Sequence[float]
+        Class dependent weights for examples when computing the
+        total cross entropy.
     """
     is_autoencoder = None                   # type: bool
     label_type = None                       # type: str
+    class_weights = None                    # type: Sequence[float]
 
 
 @freeze

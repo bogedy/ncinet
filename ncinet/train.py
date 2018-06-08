@@ -107,7 +107,9 @@ def train(config):
         labels = config.labels_network_gen(g)
 
         # Calculate loss
-        loss = ncinet.model_train.loss(logits, labels, xent_type=config.xent_type)
+        loss = ncinet.model_train.loss(logits, labels,
+                                       xent_type=config.xent_type,
+                                       class_weights=config.model_config.class_weights)
 
         # build training operation
         train_op = ncinet.model_train.train(loss, global_step, config.train_config)

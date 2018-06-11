@@ -1,0 +1,30 @@
+ingest_config:
+  archive_dir: '/work/05690/isaiahk/hc_proteins'
+  archive_prefix: "stratified"
+
+request_config: {}
+
+training_config:
+ #encoder_dir: '/work/05187/ams13/maverick/Working/TensorFlow/ncinet_full_sign/encoder_train'
+  max_steps: 70000
+  initial_learning_rate: 0.006
+  num_epochs_per_decay: 10.0
+  num_examples_per_epoch_train: 50000
+  checkpoint_secs: 180.
+
+eval_config:
+  use_writer: true
+  run_once: true
+  use_eval_data: true
+  eval_interval: 180.
+  train_dir: '/work/05690/isaiahk/maverick/ncinet/checkpoints/encoder_train'
+  writer_config:
+    archive_name: "ae_out"
+    saved_vars: !!python/tuple ["conv0/Kernel/read:0", "conv0/batch_norm/Gamma/read:0"]
+
+model_type: 'encoder'
+
+model_config:
+  n_filters: !!python/tuple [16, 10, 16]
+  filter_size: !!python/tuple [5, 5, 5]
+  reg_weight: !!python/tuple [0.01, 0.0005, 0.028]

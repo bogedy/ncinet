@@ -1,4 +1,6 @@
-ingest_config: {}
+ingest_config:
+  archive_dir: '/work/05690/isaiahk/hc_proteins'
+  archive_prefix: "stratified"
 
 request_config: {}
 

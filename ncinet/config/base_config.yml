@@ -1,10 +1,12 @@
-work_dir: "<dir_for_checkpoints>"
+work_dir: "/work/05690/isaiahk/maverick/ncinet/checkpoints"
 
 ingest_config:
   full_archive_name: "data_full.npz"
-  archive_dir: "<path_to_data_archives>"
-  nci_dir: "<path_to_nci_fingerprints>"
-  score_path: "<path_to_stability_csv>"
+  archive_dir: "/work/05690/isaiahk/maverick/ncinet/saves"
+  nci_dir: "/work/projects/SD2E-Community/prod/data/protein-design/data_v1_April_2018/nci_data"
+  score_path: !!python/tuple
+    - "/work/projects/SD2E-Community/prod/data/protein-design/data_v1_April_2018/aggregated_v1_data_Hamed_May_23_2018/consistent_training_data_v1.csv"
+    - "/work/projects/SD2E-Community/prod/data/protein-design/data_v1_April_2018/aggregated_v1_data_Hamed_May_23_2018/consistent_testing_data_v1.csv"
   ingest_version: 'sd2_dataframes_v2'
   topo_index_name: 'topo_index.yml'
   archive_prefix: "data"
